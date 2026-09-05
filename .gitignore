@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+.vite/
+*.log
+npm-debug.log*
+
+# Build output — the launcher rebuilds it, but we ship it so the
+# one-click .bat works on a machine with no npm install yet.
+!frontend/dist/
+frontend/dist/*.map
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Local secrets
+.env
+.env.local
+
+# ORCA specifics
+ORCA_TRUTH.md
+REPOSITORY_AUDIT.md
