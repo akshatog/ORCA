@@ -416,13 +416,13 @@ export default function Landing({
       {/* ================= HERO SCREEN — fills the rest of the first viewport ================= */}
       <div className="flex min-h-[calc(100svh-70px)] flex-col justify-center py-6">
       {/* hero */}
-      <div className="mt-0 grid items-center gap-10 lg:grid-cols-[1.25fr_1fr]">
+      <div className="mt-0 grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
         <div>
           <Reveal delay={60}>
             <div className="wave-rule max-w-[430px]" />
           </Reveal>
           <Reveal delay={200}>
-            <p className="mt-5 max-w-[460px] font-display text-[42px] font-black leading-[1.08] tracking-tight text-ink-900 sm:text-[48px] lg:text-[54px]">
+            <p className="mt-5 max-w-[600px] font-display text-[40px] font-black leading-[1.1] tracking-tight text-ink-900 sm:text-[46px] lg:text-[52px]">
               {t.tag1}
               <br />
               {t.tag2a}
@@ -442,16 +442,15 @@ export default function Landing({
                 {t.ctaOpen}{" "}
                 <CourseArrow size={13} className="transition-transform group-hover:translate-x-1" />
               </button>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-5">
               {/* full reload on purpose: phone vs console is decided at boot */}
               <button
                 onClick={() => (window.location.href = `/?m=1&lang=${language}`)}
-                className="flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-500 transition-colors hover:text-ink-900"
+                className="btn-line !px-5 !py-2.5"
               >
                 <PhoneGlyph size={13} /> {t.ctaPhone}
               </button>
-              <span className="h-3 w-px" style={{ background: "var(--rule)" }} aria-hidden />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-5">
               <button
                 onClick={() => onScenario("Is there a cyclone near Paradip? Can I go fishing?")}
                 className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-chart-600 underline decoration-dashed underline-offset-4 transition-colors hover:text-ink-900"
@@ -467,11 +466,11 @@ export default function Landing({
             the safe course plots itself around the danger zone, and a
             verdict panel confirms the recommendation once it's ready —
             the same story ORCA tells inside the real app, compressed
-            into one glance. Visible at every width; ~40–45% of the hero
-            column on desktop, where it has room to read as a real map. */}
-        <Reveal delay={260} className="mt-2 justify-self-center lg:mt-0 lg:justify-self-end">
+            into one glance. Visible at every width; sized to balance
+            against the (now bigger) heading on desktop. */}
+        <Reveal delay={260} className="mt-2 w-full justify-self-center lg:mt-0 lg:justify-self-end">
           <HeroArt>
-          <svg viewBox="0 0 440 300" className="w-full max-w-[420px] lg:max-w-[580px]" aria-hidden>
+          <svg viewBox="0 0 440 300" className="w-full max-w-[480px] lg:max-w-[720px]" aria-hidden>
             {/* ============ layer 0 — ocean / bathymetry (always present) ============ */}
             <rect x="0" y="0" width="440" height="300" fill="#2A7391" opacity="0.06" />
             <rect x="0" y="150" width="440" height="150" fill="#2A7391" opacity="0.05" />
@@ -627,9 +626,6 @@ export default function Landing({
                 </text>
               </g>
             </g>
-            <text x="392" y="64" fontFamily="'Fraunces Variable',Georgia,serif" fontStyle="italic" fontWeight="600" fontSize="13" fill="#1D7A50">
-              82%
-            </text>
             {/* compass */}
             <g transform="translate(400 250)" opacity="0.75">
               <circle r="24" fill="none" stroke="#12212D" strokeWidth="1.3" />
