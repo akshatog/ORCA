@@ -67,7 +67,7 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='860' height='640' viewBox='0 0 860 640' fill='none' stroke='%232A7391' stroke-width='1'%3E%3Cg opacity='0.16'%3E%3Cpath d='M430 40 C640 55 800 170 805 320 C810 470 640 595 430 600 C220 605 55 480 60 320 C65 160 220 25 430 40 Z'/%3E%3Cpath d='M430 92 C598 102 742 196 748 320 C754 444 604 543 430 549 C256 555 112 452 116 320 C120 188 262 82 430 92 Z'/%3E%3Cpath d='M441 146 C574 152 684 231 689 325 C694 419 575 494 441 499 C307 504 196 424 201 325 C206 226 308 140 441 146 Z'/%3E%3Cpath d='M446 201 C545 206 624 261 627 325 C630 389 546 444 446 447 C346 450 266 394 269 325 C272 256 347 196 446 201 Z'/%3E%3Cpath d='M451 256 C515 259 564 291 566 327 C568 363 516 394 451 396 C386 398 337 364 339 327 C341 290 387 253 451 256 Z'/%3E%3Ctext x='430' y='330' font-family='Georgia' font-style='italic' font-size='14' fill='%232A7391' stroke='none' text-anchor='middle'%3E9%3C/text%3E%3Ctext x='560' y='250' font-family='Georgia' font-style='italic' font-size='13' fill='%232A7391' stroke='none'%3E18%3C/text%3E%3Ctext x='250' y='420' font-family='Georgia' font-style='italic' font-size='13' fill='%232A7391' stroke='none'%3E27%3C/text%3E%3Ctext x='640' y='430' font-family='Georgia' font-style='italic' font-size='13' fill='%232A7391' stroke='none'%3E44%3C/text%3E%3Ctext x='300' y='150' font-family='Georgia' font-style='italic' font-size='13' fill='%232A7391' stroke='none'%3E61%3C/text%3E%3C/g%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='%2312212D' opacity='0.05'%3E%3Ccircle cx='210' cy='210' r='168' fill='none' stroke='%2312212D' stroke-width='1.5'/%3E%3Ccircle cx='210' cy='210' r='128' fill='none' stroke='%2312212D' stroke-width='1'/%3E%3Cg%3E%3Cpath d='M210 30 L224 196 L210 210 L196 196 Z'/%3E%3Cpath d='M210 390 L224 224 L210 210 L196 224 Z'/%3E%3Cpath d='M30 210 L196 196 L210 210 L196 224 Z'/%3E%3Cpath d='M390 210 L224 196 L210 210 L224 224 Z'/%3E%3C/g%3E%3Cg transform='rotate(45 210 210)'%3E%3Cpath d='M210 82 L220 200 L210 210 L200 200 Z'/%3E%3Cpath d='M210 338 L220 220 L210 210 L200 220 Z'/%3E%3Cpath d='M82 210 L200 200 L210 210 L200 220 Z'/%3E%3Cpath d='M338 210 L220 200 L210 210 L220 220 Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420' viewBox='0 0 420 420'%3E%3Cg fill='%2312212D' opacity='0.025'%3E%3Ccircle cx='210' cy='210' r='168' fill='none' stroke='%2312212D' stroke-width='1.5'/%3E%3Ccircle cx='210' cy='210' r='128' fill='none' stroke='%2312212D' stroke-width='1'/%3E%3Cg%3E%3Cpath d='M210 30 L224 196 L210 210 L196 196 Z'/%3E%3Cpath d='M210 390 L224 224 L210 210 L196 224 Z'/%3E%3Cpath d='M30 210 L196 196 L210 210 L196 224 Z'/%3E%3Cpath d='M390 210 L224 196 L210 210 L224 224 Z'/%3E%3C/g%3E%3Cg transform='rotate(45 210 210)'%3E%3Cpath d='M210 82 L220 200 L210 210 L200 200 Z'/%3E%3Cpath d='M210 338 L220 220 L210 210 L200 220 Z'/%3E%3Cpath d='M82 210 L200 200 L210 210 L200 220 Z'/%3E%3Cpath d='M338 210 L220 200 L210 210 L220 220 Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   background-repeat: no-repeat, no-repeat;
   background-position:
     left -180px bottom -140px,
@@ -156,12 +156,6 @@ body::after {
     transform: rotate(2deg);
   }
 }
-/* Waterlines crawl sideways, one tile-width per loop so they never jump. */
-@keyframes wavecrawl {
-  to {
-    background-position-x: -14px;
-  }
-}
 @keyframes seadrift-a {
   to {
     background-position-x: -280px;
@@ -189,6 +183,38 @@ body::after {
 .compass-needle {
   transform-origin: 50% 50%;
   animation: needlesway 7s ease-in-out infinite;
+}
+
+/* Hero compass: a needle that hunts for north, sweeping the full dial —
+   distinct from the logo's fin-sway above, which stays as it was. */
+@keyframes needlespin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hero-compass-needle {
+  transform-origin: 50% 50%;
+  transform-box: fill-box;
+  animation: needlespin 9s linear infinite;
+}
+
+/* Status-panel live dot on the hero verdict readout. */
+@keyframes verdictpulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.verdict-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: verdictpulse 1.8s ease-in-out infinite;
 }
 
 .grow-x {
@@ -347,7 +373,7 @@ body::after {
   background-position: bottom left;
 }
 .sea-drift {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='70' viewBox='0 0 280 70'%3E%3Cpath d='M0 34 Q35 14 70 34 T140 34 T210 34 T280 34 L280 70 L0 70 Z' fill='%231E5F7A' fill-opacity='0.30'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='70' viewBox='0 0 280 70'%3E%3Cpath d='M0 34 Q35 14 70 34 T140 34 T210 34 T280 34 L280 70 L0 70 Z' fill='%23789FAA' fill-opacity='0.32'/%3E%3C/svg%3E");
   background-size: 280px 70px;
   animation: seadrift-a 5s linear infinite;
 }
@@ -358,12 +384,12 @@ body::after {
   inset: 0;
 }
 .sea-drift::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='84' viewBox='0 0 340 84'%3E%3Cpath d='M0 40 Q42 18 85 40 T170 40 T255 40 T340 40 L340 84 L0 84 Z' fill='%232A7391' fill-opacity='0.22'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='84' viewBox='0 0 340 84'%3E%3Cpath d='M0 40 Q42 18 85 40 T170 40 T255 40 T340 40 L340 84 L0 84 Z' fill='%2389AEB8' fill-opacity='0.25'/%3E%3C/svg%3E");
   background-size: 340px 84px;
   animation: seadrift-b 8s linear infinite;
 }
 .sea-drift::after {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='100' viewBox='0 0 420 100'%3E%3Cpath d='M0 46 Q52 24 105 46 T210 46 T315 46 T420 46 L420 100 L0 100 Z' fill='%23174F68' fill-opacity='0.16'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='100' viewBox='0 0 420 100'%3E%3Cpath d='M0 46 Q52 24 105 46 T210 46 T315 46 T420 46 L420 100 L0 100 Z' fill='%236F96A3' fill-opacity='0.20'/%3E%3C/svg%3E");
   background-size: 420px 100px;
   animation: seadrift-c 12s linear infinite;
 }
@@ -531,14 +557,6 @@ body::after {
     font-style: italic;
     font-weight: 600;
     font-variation-settings: "SOFT" 40;
-  }
-
-  /* Sea-surface symbol, used as a section divider — and it flows. */
-  .wave-rule {
-    height: 7px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='7'%3E%3Cpath d='M0 5 Q3.5 1 7 5 T14 5' fill='none' stroke='%232A7391' stroke-opacity='0.55' stroke-width='1'/%3E%3C/svg%3E")
-      repeat-x center;
-    animation: wavecrawl 2.6s linear infinite;
   }
 
   /* Buoy badges answer a hovered row with a ripple. */
@@ -751,6 +769,10 @@ path.route-live {
   .route-draw {
     animation: none;
     stroke-dashoffset: 0;
+  }
+  .hero-compass-needle,
+  .verdict-pulse {
+    animation: none;
   }
 }
 

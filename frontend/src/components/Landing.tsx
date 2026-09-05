@@ -219,7 +219,6 @@ function prefersStill(): boolean {
  * reduced motion the content simply starts there.
  */
 function Reveal({
-  delay = 0,
   className = "",
   children,
 }: {
@@ -227,26 +226,14 @@ function Reveal({
   className?: string;
   children: ReactNode;
 }) {
-  const [on, setOn] = useState(prefersStill);
-  useEffect(() => {
-    if (on) return;
-    const raf = requestAnimationFrame(() => setOn(true));
-    const settle = window.setTimeout(() => setOn(true), 500);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(settle);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <div
       className={className}
       style={{
-        opacity: on ? 1 : 0,
-        transform: on ? "none" : "translateY(16px)",
-        transition: prefersStill()
-          ? "none"
-          : `opacity 0.65s ease ${delay}ms, transform 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) ${delay}ms`,
+        opacity: 1,
+        transform: "none",
+        transition: "none",
+        animation: "none",
       }}
     >
       {children}
@@ -416,11 +403,8 @@ export default function Landing({
       {/* ================= HERO SCREEN — fills the rest of the first viewport ================= */}
       <div className="flex min-h-[calc(100svh-70px)] flex-col justify-center py-6">
       {/* hero */}
-      <div className="mt-0 grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+      <div className="mt-0 grid items-center gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-x-20 xl:gap-x-24">
         <div>
-          <Reveal delay={60}>
-            <div className="wave-rule max-w-[430px]" />
-          </Reveal>
           <Reveal delay={200}>
             <p className="mt-5 max-w-[600px] font-display text-[40px] font-black leading-[1.1] tracking-tight text-ink-900 sm:text-[46px] lg:text-[52px]">
               {t.tag1}
@@ -468,7 +452,7 @@ export default function Landing({
             the same story ORCA tells inside the real app, compressed
             into one glance. Visible at every width; sized to balance
             against the (now bigger) heading on desktop. */}
-        <Reveal delay={260} className="mt-2 w-full justify-self-center lg:mt-0 lg:justify-self-end">
+        <Reveal delay={260} className="mt-2 w-full justify-self-center lg:mt-0 lg:justify-self-end lg:pl-6 xl:pl-10">
           <HeroArt>
           <svg viewBox="0 0 440 300" className="w-full max-w-[480px] lg:max-w-[720px]" aria-hidden>
             {/* ============ layer 0 — ocean / bathymetry (always present) ============ */}
@@ -626,33 +610,73 @@ export default function Landing({
                 </text>
               </g>
             </g>
-            {/* compass */}
+            {/* compass — fixed pivot at the centre (the static dot), a classic
+                two-tone needle (bold north tip, faint south tail) spinning
+                around it. The needle shape is built symmetric about the
+                pivot so its rotation is centred, not orbiting off-axis. */}
             <g transform="translate(400 250)" opacity="0.75">
               <circle r="24" fill="none" stroke="#12212D" strokeWidth="1.3" />
-              <g className="compass-needle">
-                <path d="M0 -20 L5 6 L0 11 L-5 6 Z" fill="#12212D" />
-              </g>
               <text y="-27" textAnchor="middle" fontFamily="'Spline Sans Mono Variable',monospace" fontSize="8" fill="#12212D">
                 N
               </text>
+              <g className="hero-compass-needle">
+                <path d="M0 -12 L2.6 0 L0 2 L-2.6 0 Z" fill="#12212D" />
+                <path d="M0 12 L2 0 L0 -2 L-2 0 Z" fill="#12212D" opacity="0.35" />
+              </g>
+              <circle r="1.6" fill="#12212D" />
             </g>
 
-            {/* ============ verdict panel — arrives once the course is plotted ============ */}
-            <g className="hero-verdict" transform="translate(148 232)">
-              <rect width="192" height="50" rx="3" fill="#FBF7ED" stroke="#1D7A50" strokeWidth="1.4" />
-              <text x="10" y="16" fontFamily="'Spline Sans Mono Variable',monospace" fontSize="7.5" fill="#1D7A50" letterSpacing="1.4">
-                ORCA RECOMMENDS
-              </text>
-              <text x="10" y="32" fontFamily="'Fraunces Variable',Georgia,serif" fontWeight="700" fontSize="13" fill="#12212D">
-                Safe route found
-              </text>
-              <text x="10" y="44" fontFamily="'Spline Sans Mono Variable',monospace" fontSize="6.5" fill="#5D7386" letterSpacing="1">
-                CONFIDENCE
-              </text>
-              <text x="182" y="34" textAnchor="end" fontFamily="'Fraunces Variable',Georgia,serif" fontWeight="800" fontSize="17" fill="#1D7A50">
-                {heroConfidence}%
-              </text>
-            </g>
+            {/* ============ route verdict — integrated map annotation ============ */}
+{/* ============ route verdict — clean map annotation ============ */}
+<g
+  className="hero-verdict"
+  transform="translate(210 245)"
+>
+  {/* status dot */}
+  <circle
+    cx="0"
+    cy="0"
+    r="3.5"
+    fill="#1D7A50"
+  />
+
+  {/* main verdict */}
+  <text
+    x="10"
+    y="4"
+    fontFamily="'Spline Sans Mono Variable', monospace"
+    fontSize="8"
+    fontWeight="700"
+    fill="#12212D"
+    letterSpacing="1"
+  >
+    SAFE ROUTE
+  </text>
+
+  {/* confidence */}
+  <text
+    x="10"
+    y="17"
+    fontFamily="'Spline Sans Mono Variable', monospace"
+    fontSize="6.5"
+    fontWeight="600"
+    fill="#5D7386"
+    letterSpacing="0.8"
+  >
+    {heroConfidence}% CONFIDENCE
+  </text>
+
+  {/* subtle chart line */}
+  <line
+    x1="10"
+    y1="23"
+    x2="115"
+    y2="23"
+    stroke="#1D7A50"
+    strokeWidth="1"
+    opacity="0.35"
+  />
+</g>
           </svg>
           </HeroArt>
         </Reveal>
