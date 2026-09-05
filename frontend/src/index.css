@@ -330,11 +330,13 @@ body::after {
 /* ------------------------------------------------------------------
    The sea itself: three translucent swell layers drifting at their own
    speeds along the foot of every screen. Fixed, behind all content.
+   Faster and richer than a static footer decoration should be — this
+   is meant to read as moving water, not wallpaper.
    ------------------------------------------------------------------ */
 .sea-drift {
   position: fixed;
   inset: auto 0 0 0;
-  height: 150px;
+  height: 190px;
   z-index: -1;
   pointer-events: none;
 }
@@ -345,9 +347,9 @@ body::after {
   background-position: bottom left;
 }
 .sea-drift {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='70' viewBox='0 0 280 70'%3E%3Cpath d='M0 34 Q35 14 70 34 T140 34 T210 34 T280 34 L280 70 L0 70 Z' fill='%232A7391' fill-opacity='0.10'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='70' viewBox='0 0 280 70'%3E%3Cpath d='M0 34 Q35 14 70 34 T140 34 T210 34 T280 34 L280 70 L0 70 Z' fill='%231E5F7A' fill-opacity='0.30'/%3E%3C/svg%3E");
   background-size: 280px 70px;
-  animation: seadrift-a 13s linear infinite;
+  animation: seadrift-a 5s linear infinite;
 }
 .sea-drift::before,
 .sea-drift::after {
@@ -356,14 +358,14 @@ body::after {
   inset: 0;
 }
 .sea-drift::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='84' viewBox='0 0 340 84'%3E%3Cpath d='M0 40 Q42 18 85 40 T170 40 T255 40 T340 40 L340 84 L0 84 Z' fill='%232A7391' fill-opacity='0.07'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='84' viewBox='0 0 340 84'%3E%3Cpath d='M0 40 Q42 18 85 40 T170 40 T255 40 T340 40 L340 84 L0 84 Z' fill='%232A7391' fill-opacity='0.22'/%3E%3C/svg%3E");
   background-size: 340px 84px;
-  animation: seadrift-b 21s linear infinite;
+  animation: seadrift-b 8s linear infinite;
 }
 .sea-drift::after {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='100' viewBox='0 0 420 100'%3E%3Cpath d='M0 46 Q52 24 105 46 T210 46 T315 46 T420 46 L420 100 L0 100 Z' fill='%231E5F7A' fill-opacity='0.05'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='100' viewBox='0 0 420 100'%3E%3Cpath d='M0 46 Q52 24 105 46 T210 46 T315 46 T420 46 L420 100 L0 100 Z' fill='%23174F68' fill-opacity='0.16'/%3E%3C/svg%3E");
   background-size: 420px 100px;
-  animation: seadrift-c 31s linear infinite;
+  animation: seadrift-c 12s linear infinite;
 }
 
 @layer components {
@@ -648,9 +650,207 @@ path.zone-hatch-info {
   fill: url(#hatch-info);
   fill-opacity: 1;
 }
+/* Scroll cue at the foot of the hero screen: a gentle, slow nudge down —
+   never so fast it reads as urgent, this is an invitation, not an alert. */
+@keyframes scrollnudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+.scroll-cue svg {
+  animation: scrollnudge 2s ease-in-out infinite;
+}
+
 /* The recommended route quietly runs — dashes drift like a plotted course. */
 path.route-live {
   animation: dashdrift 1.8s linear infinite;
+}
+
+/* ------------------------------------------------------------------
+   Hero "marine intelligence map" — data layers arrive in sequence, the
+   course draws itself in once the layers are up, and a verdict panel
+   confirms the recommendation last. Everything here runs once (not on
+   loop) except the ambient flow/pulse/spin, which are the "live system"
+   heartbeat — the sequence tells a story, the loops keep it feeling alive.
+   ------------------------------------------------------------------ */
+@keyframes layerfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.layer-weather {
+  opacity: 0;
+  animation: layerfade 900ms ease-out 500ms both;
+}
+.layer-satellite {
+  opacity: 0;
+  animation: layerfade 900ms ease-out 1000ms both;
+}
+
+/* the course draws itself in once — pathLength=100 on the element itself
+   normalizes the dash math regardless of the curve's real length */
+@keyframes routedraw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.route-draw {
+  animation: routedraw 1.4s cubic-bezier(0.3, 0.6, 0.2, 1) 550ms both;
+}
+/* the ambient flowing overlay only appears once the draw-in has finished */
+.route-flow {
+  opacity: 0;
+  animation: layerfade 400ms ease-out 1950ms both, dashdrift 1.8s linear 1950ms infinite;
+}
+
+/* high-risk / no-entry zones breathe gently — a caution, not a klaxon */
+@keyframes riskpulse {
+  0%,
+  100% {
+    stroke-opacity: 0.55;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+.risk-pulse {
+  animation: riskpulse 2.4s ease-in-out infinite;
+}
+.risk-pulse--soft {
+  animation: riskpulse 2.8s ease-in-out 0.4s infinite;
+}
+
+/* the cyclone's plotted track — sparse dashes, no drift, it's a track not a route */
+.cyclone-trajectory {
+  stroke-dasharray: 4 5;
+}
+
+/* the verdict panel — arrives last, once the course is actually plotted */
+.hero-verdict {
+  opacity: 0;
+  animation: layerfade 700ms ease-out 2150ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .layer-weather,
+  .layer-satellite,
+  .route-flow,
+  .hero-verdict {
+    animation: none;
+    opacity: 1;
+  }
+  .route-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Landing hero: a live position ping that actually sails the plotted
+   course (bow → buoy), not just a decorative dash. The path string is
+   the same "d" as the hero's route-live curve — this class is only
+   ever used on that one graphic. Three dots at staggered delays read
+   as a short comet tail trailing the lead ping.
+   ------------------------------------------------------------------ */
+@keyframes hero-sail {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  8% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  48% {
+    transform: scale(1.35);
+  }
+  58% {
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes hero-sail-ring {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  8% {
+    opacity: 0.5;
+  }
+  90% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+.hero-sail,
+.hero-sail-ring {
+  offset-path: path("M60 252 C 105 240 120 205 138 178 C 155 152 130 120 160 84 C 185 55 260 40 320 46 C 342 48 356 52 366 60");
+  offset-rotate: 0deg;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.hero-sail {
+  animation: hero-sail 4.2s cubic-bezier(0.4, 0, 0.3, 1) 2000ms infinite backwards;
+}
+.hero-sail-ring {
+  animation: hero-sail-ring 4.2s cubic-bezier(0.4, 0, 0.3, 1) 2000ms infinite backwards;
+}
+.hero-sail--head {
+  filter: drop-shadow(0 0 8px rgba(29, 122, 80, 0.9)) drop-shadow(0 0 3px rgba(29, 122, 80, 1));
+}
+.hero-sail--tail {
+  opacity: 0.35;
+  animation-delay: 1300ms;
+}
+.hero-sail--tail2 {
+  opacity: 0.6;
+  animation-delay: 1650ms;
+}
+/* Fail-safe: reduced motion gets a still ping partway along the course,
+   never a frozen-invisible one. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-sail {
+    animation: none;
+    offset-distance: 55%;
+    opacity: 0.85;
+  }
+  .hero-sail--tail,
+  .hero-sail--tail2,
+  .hero-sail-ring {
+    display: none;
+  }
+}
+/* Fail-safe: browsers without offset-path support hide the ping rather
+   than show it stuck at the SVG origin. */
+@supports not (offset-path: path("M0 0")) {
+  .hero-sail,
+  .hero-sail-ring {
+    display: none;
+  }
 }
 /* The search radius sweeps slowly the other way. */
 path.radius-drift {
