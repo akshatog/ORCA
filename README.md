@@ -8,7 +8,6 @@
 
 [![SIH 2026](https://img.shields.io/badge/Smart%20India%20Hackathon-2026-12212D?labelColor=F5EEDD&color=12212D)](https://sih.gov.in)
 [![Problem Statement](https://img.shields.io/badge/PS-SIH26176%20·%20ISRO-1E5F7A?labelColor=F5EEDD)](https://sih.gov.in)
-[![Team](https://img.shields.io/badge/Team%20Random-U3M71E5U-2A7391?labelColor=F5EEDD)](#)
 [![Python](https://img.shields.io/badge/Python-3.10-1D7A50?labelColor=F5EEDD&logo=python&logoColor=1D7A50)](#the-stack)
 [![FastAPI](https://img.shields.io/badge/FastAPI-4%20dependencies-1D7A50?labelColor=F5EEDD)](#the-stack)
 [![React](https://img.shields.io/badge/React%2018-TypeScript-1E5F7A?labelColor=F5EEDD&logo=react&logoColor=1E5F7A)](#the-stack)
