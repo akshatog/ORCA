@@ -31,14 +31,17 @@ export default function ConditionsStrip({
   ];
 
   return (
-    <div className="panel grid grid-cols-3 sm:grid-cols-6">
+    <div className="panel grid grid-cols-3 overflow-hidden sm:grid-cols-6">
       {tiles.map((tile, i) => (
         <div
           key={tile.label}
-          className={`min-w-0 px-3 py-2.5 ${i > 0 ? "border-l" : ""} ${
+          className={`min-w-0 px-3 py-2.5 transition-colors hover:bg-chart-100/50 ${i > 0 ? "border-l" : ""} ${
             tile.accent ? "bg-chart-100/40" : ""
           }`}
-          style={{ borderColor: "var(--rule-faint)" }}
+          style={{
+            borderColor: "var(--rule-faint)",
+            borderTop: tile.accent ? "2px solid #2a7391" : "2px solid transparent",
+          }}
         >
           <div className="label truncate !text-[9px]">{tile.label}</div>
           <div className="mt-1 truncate font-mono text-[14.5px] font-bold tabular-nums leading-none text-ink-900">

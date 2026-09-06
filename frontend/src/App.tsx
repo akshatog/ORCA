@@ -8,11 +8,16 @@ import FishingPanel from "./components/FishingPanel";
 import {
   ChartDefs,
   CompassMark,
+  CourseArrow,
+  CrosshairGlyph,
+  LockGlyph,
   PlayGlyph,
   SpeakerGlyph,
   SpeakerOffGlyph,
   StopGlyph,
   WarnGlyph,
+  WaveGlyph,
+  WindGlyph,
 } from "./components/glyphs";
 import GuidedTour, { TOUR } from "./components/GuidedTour";
 import Landing from "./components/Landing";
@@ -511,36 +516,51 @@ export default function App() {
             />
 
             {outlook && (
-              <div className="panel grid grid-cols-2 sm:grid-cols-4">
+              <div className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
                 {[
                   {
                     k: language === "mr" ? "सुरक्षा" : language === "hi" ? "सुरक्षा" : "Safety",
                     v: `${outlook.safety.score}`,
                     s: outlook.safety.category,
                     color: RISK_COLOR[outlook.safety.category],
+                    icon: <LockGlyph size={11} />,
                   },
                   {
                     k: language === "mr" ? "लाटा" : language === "hi" ? "लहरें" : "Waves",
                     v: `${outlook.safety.wave_height_m ?? "—"}`,
                     s: "m",
+                    icon: <WaveGlyph size={12} />,
                   },
                   {
                     k: language === "mr" ? "वारा" : language === "hi" ? "हवा" : "Wind",
                     v: `${Math.round(outlook.safety.wind_speed_kmh ?? 0)}`,
                     s: "km/h",
+                    icon: <WindGlyph size={12} />,
                   },
                   {
                     k: language === "mr" ? "जागा" : language === "hi" ? "जगहें" : "Areas",
                     v: `${outlook.areas.length}`,
                     s: `in ${outlook.radius_km} km`,
+                    icon: <CrosshairGlyph size={11} />,
                   },
                 ].map((x, i) => (
                   <div
                     key={x.k}
-                    className={`group px-4 py-3 transition-colors hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
-                    style={{ borderColor: "var(--rule-faint)" }}
+                    className={`group relative px-4 py-3 transition-colors hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
+                    style={{
+                      borderColor: "var(--rule-faint)",
+                      borderTop: x.color ? `2px solid ${x.color}` : "2px solid transparent",
+                    }}
                   >
-                    <div className="label truncate">{x.k}</div>
+                    <div className="label flex items-center gap-1.5 truncate">
+                      <span
+                        className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500"
+                        style={x.color ? { color: x.color, opacity: 0.75 } : undefined}
+                      >
+                        {x.icon}
+                      </span>
+                      {x.k}
+                    </div>
                     <div
                       className={`mt-1 font-mono text-[20px] font-bold tabular-nums leading-none text-ink-900 ${
                         x.color ? "" : "transition-colors group-hover:text-chart-600"
@@ -558,12 +578,21 @@ export default function App() {
 
           <div className="space-y-4 lg:h-[calc(100vh-235px)] lg:overflow-y-auto lg:pr-1">
             {loadingOutlook && !outlook && (
-              <div className="panel p-6 text-center text-sm italic text-ink-400">
-                {language === "mr"
-                  ? "तुमच्या ठिकाणाची माहिती घेत आहे…"
-                  : language === "hi"
-                    ? "आपके स्थान की जानकारी ले रहे हैं…"
-                    : "Reading the sea at your location…"}
+              <div className="panel flex flex-col items-center gap-3 p-8 text-center">
+                <span className="relative grid h-9 w-9 place-items-center text-chart-600">
+                  <CompassMark size={30} className="animate-[spin_5s_linear_infinite] opacity-70" />
+                  <span
+                    className="pulse-dot absolute -right-0.5 -top-0.5"
+                    style={{ background: "#2a7391", color: "#2a7391" }}
+                  />
+                </span>
+                <span className="text-[13px] italic text-ink-400">
+                  {language === "mr"
+                    ? "तुमच्या ठिकाणाची माहिती घेत आहे…"
+                    : language === "hi"
+                      ? "आपके स्थान की जानकारी ले रहे हैं…"
+                      : "Reading the sea at your location…"}
+                </span>
               </div>
             )}
             {outlook && (
@@ -667,7 +696,12 @@ export default function App() {
               {latest && latest.routes.length > 0 && (
                 <div className="panel overflow-hidden">
                   <div className="hd">
-                    <span className="label">{ui.courses}</span>
+                    <span className="label flex items-center gap-2">
+                      <CourseArrow size={12} className="text-chart-500" /> {ui.courses}
+                    </span>
+                    <span className="font-mono text-[10px] tabular-nums text-ink-400">
+                      {latest.routes.length}
+                    </span>
                   </div>
                   <div className="space-y-2 px-4 py-3.5">
                     {latest.routes.map((r) => (

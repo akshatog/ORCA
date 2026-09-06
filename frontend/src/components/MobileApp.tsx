@@ -345,7 +345,10 @@ export default function MobileApp() {
         <main className="flex-1 space-y-3 px-3 pb-24 pt-3">
           {!outlook && (
             <div className="panel flex flex-col items-center gap-3 p-10 text-center">
-              <CompassMark size={56} className="text-ink-300" />
+              <CompassMark
+                size={56}
+                className="animate-[spin_5s_linear_infinite] text-ink-300 opacity-80"
+              />
               <span className="text-[15px] italic text-ink-400">{t.reading}</span>
             </div>
           )}
@@ -358,14 +361,11 @@ export default function MobileApp() {
                 style={{ background: `${color}14` }}
               >
                 <div
-                  className="grid h-32 w-32 place-items-center rounded-full border-[7px] bg-paper-50"
-                  style={{ borderColor: color }}
+                  className="relative grid h-32 w-32 place-items-center rounded-full border-[7px] bg-paper-50"
+                  style={{ borderColor: color, color }}
                 >
-                  {danger ? (
-                    <WarnGlyph size={54} className="" />
-                  ) : (
-                    <BoatGlyph size={58} className="" />
-                  )}
+                  {danger && <span className="alert-ring" style={{ borderColor: color }} />}
+                  {danger ? <WarnGlyph size={54} /> : <BoatGlyph size={58} />}
                 </div>
                 <div
                   className="mt-3 font-display text-[30px] font-black leading-none"
@@ -435,7 +435,7 @@ export default function MobileApp() {
                     <button
                       key={a.id}
                       onClick={() => speakArea(a)}
-                      className="flex w-full items-center gap-3 px-3 py-3 text-left active:bg-paper-150"
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition active:scale-[0.99] active:bg-paper-150"
                     >
                       <span
                         className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-4 bg-paper-50 font-display text-[19px] font-extrabold text-ink-900"
@@ -465,8 +465,8 @@ export default function MobileApp() {
 
               {/* money — two numbers a fisher weighs every morning */}
               {outlook.economics && (
-                <div className="panel grid grid-cols-2">
-                  <div className="px-3 py-3 text-center">
+                <div className="panel grid grid-cols-2 overflow-hidden">
+                  <div className="px-3 py-3 text-center" style={{ borderTop: "2px solid transparent" }}>
                     <div className="label !text-[9px]">{t.fuel}</div>
                     <div className="mt-1 font-mono text-[21px] font-bold text-ink-900">
                       ₹{outlook.economics.fuel_cost_inr.toLocaleString("en-IN")}
@@ -474,7 +474,7 @@ export default function MobileApp() {
                   </div>
                   <div
                     className="border-l bg-risk-low/[0.07] px-3 py-3 text-center"
-                    style={{ borderColor: "var(--rule-faint)" }}
+                    style={{ borderColor: "var(--rule-faint)", borderTop: "2px solid #1D7A50" }}
                   >
                     <div className="label !text-[9px] !text-risk-low">{t.profit}</div>
                     <div className="mt-1 font-mono text-[21px] font-bold text-risk-low">

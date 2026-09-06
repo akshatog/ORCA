@@ -125,6 +125,49 @@ export function CourseArrow({ size = 16, className = "" }: G) {
   );
 }
 
+/** Two drawn swells — used wherever wave height needs a mark, not just a number. */
+export function WaveGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M1.5 7.3 Q5 4 8.5 7.3 T15.5 7.3 T18.5 7.3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M1.5 12.7 Q5 9.4 8.5 12.7 T15.5 12.7 T18.5 12.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+    </svg>
+  );
+}
+
+/** A wind vane's swirl — used for wind speed. */
+export function WindGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M1.8 7 H12.3 A2.6 2.6 0 1 0 10.2 3.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M1.8 12.3 H14.6 A2.4 2.4 0 1 1 12.3 16.3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      <path d="M1.8 16.9 H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+    </svg>
+  );
+}
+
 export function CrosshairGlyph({ size = 15, className = "" }: G) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
@@ -292,6 +335,15 @@ export function PlayGlyph({ size = 13, className = "" }: G) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" className={className} aria-hidden>
       <path d="M3.5 2 L12 7 L3.5 12 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** GitHub mark, single-path, drawn in the sheet's ink-glyph style. */
+export function GithubGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden>
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
     </svg>
   );
 }
