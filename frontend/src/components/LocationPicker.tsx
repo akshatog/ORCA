@@ -138,8 +138,12 @@ export default function LocationPicker({
           {status === "locating" ? t.locating : t.useGps}
         </button>
 
-        <button onClick={() => setOpen((v) => !v)} className="btn-line !py-1.5">
-          {t.pickPort} ▾
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`btn-line !py-1.5 ${open ? "!bg-ink-900 !text-paper-50" : ""}`}
+        >
+          {t.pickPort}
+          <span className={`inline-block transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
       </div>
 

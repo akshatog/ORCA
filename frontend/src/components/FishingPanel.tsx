@@ -331,8 +331,11 @@ export default function FishingPanel({
                 ].map((x, i) => (
                   <div
                     key={x.k}
-                    className={`px-4 py-3 ${i > 0 ? "border-l" : ""} ${x.hero ? "bg-risk-low/[0.07]" : ""}`}
-                    style={{ borderColor: "var(--rule-faint)" }}
+                    className={`px-4 py-3 transition-colors hover:bg-chart-100/30 ${i > 0 ? "border-l" : ""} ${x.hero ? "bg-risk-low/[0.07]" : ""}`}
+                    style={{
+                      borderColor: "var(--rule-faint)",
+                      borderTop: x.hero ? "2px solid #1D7A50" : "2px solid transparent",
+                    }}
                   >
                     <div className="label truncate">{x.k}</div>
                     <div
@@ -417,8 +420,11 @@ export default function FishingPanel({
             ].map((x, i) => (
               <div
                 key={x.k}
-                className={`px-4 py-3 ${i > 0 ? "border-l" : ""} ${x.hero ? "bg-risk-low/[0.07]" : ""}`}
-                style={{ borderColor: "var(--rule-faint)" }}
+                className={`px-4 py-3 transition-colors hover:bg-chart-100/30 ${i > 0 ? "border-l" : ""} ${x.hero ? "bg-risk-low/[0.07]" : ""}`}
+                style={{
+                  borderColor: "var(--rule-faint)",
+                  borderTop: x.hero ? "2px solid #1D7A50" : "2px solid transparent",
+                }}
               >
                 <div className="label truncate !text-[9px]">{x.k}</div>
                 <div
@@ -451,7 +457,10 @@ export default function FishingPanel({
           </div>
           <div className="space-y-2.5 px-4 py-3.5">
             {data.avoid.map((z) => (
-              <div key={z.name} className="flex items-start gap-2.5">
+              <div
+                key={z.name}
+                className="flex items-start gap-2.5 rounded-[2px] px-1 py-0.5 transition-colors hover:bg-risk-extreme/[0.06]"
+              >
                 <svg width="14" height="14" className="mt-0.5 shrink-0" aria-hidden>
                   <rect x="0.5" y="0.5" width="13" height="13" fill="url(#hatch-critical)" stroke="#AF2318" strokeWidth="1" />
                 </svg>

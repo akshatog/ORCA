@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, Language } from "../types";
-import { BoatGlyph, CourseArrow, MicGlyph, SchoolGlyph, StopGlyph } from "./glyphs";
+import { BoatGlyph, CompassMark, CourseArrow, MicGlyph, SchoolGlyph, StopGlyph } from "./glyphs";
 
 const PLACEHOLDER: Record<Language, string> = {
   en: "Ask ORCA — can I go fishing tomorrow at 6 AM?",
@@ -158,8 +158,18 @@ export default function ChatPanel({
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[88%] animate-rise ${m.role === "user" ? "text-right" : ""}`}>
-              <div className="label mb-1 !text-[8.5px] !tracking-[0.2em] !text-ink-300">
-                {m.role === "user" ? (T[language] ?? T.en).you : "ORCA"}
+              <div
+                className={`label mb-1 flex items-center gap-1 !text-[8.5px] !tracking-[0.2em] !text-ink-300 ${
+                  m.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {m.role === "user" ? (
+                  (T[language] ?? T.en).you
+                ) : (
+                  <>
+                    <CompassMark size={10} className="shrink-0 text-chart-500" /> ORCA
+                  </>
+                )}
               </div>
               <div
                 className={`inline-block rounded-[3px] px-3.5 py-2.5 text-left text-[13.5px] leading-relaxed ${

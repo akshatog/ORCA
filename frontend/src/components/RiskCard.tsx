@@ -190,7 +190,11 @@ export default function RiskCard({
               </thead>
               <tbody className="text-ink-800">
                 {evidence.map((e, i) => (
-                  <tr key={i} className="border-t" style={{ borderColor: "var(--rule-faint)" }}>
+                  <tr
+                    key={i}
+                    className={`border-t transition-colors hover:bg-paper-150 ${i % 2 === 1 ? "bg-paper-100/50" : ""}`}
+                    style={{ borderColor: "var(--rule-faint)" }}
+                  >
                     <td className="py-1.5 pr-3 font-sans">{e.label}</td>
                     <td className="py-1.5 pr-3 font-bold tabular-nums">{e.value}</td>
                     <td className="py-1.5 pr-3 text-ink-500">{e.source}</td>

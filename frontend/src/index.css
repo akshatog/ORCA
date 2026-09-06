@@ -542,6 +542,42 @@ body::after {
     text-shadow: 0 0 0.5px currentColor;
   }
 
+  /* Filled risk chip — a tinted, bordered pill for LOW/MODERATE/HIGH/EXTREME,
+     scannable at a glance across a dense table (the bare border-only label
+     it replaces was too quiet against a full row of numbers). */
+  .risk-chip {
+    @apply inline-flex items-center gap-1.5 rounded-[2px] border px-2 py-0.5 font-mono text-[9.5px] font-bold uppercase tracking-wider;
+    background: color-mix(in srgb, currentColor 12%, var(--paper-bright));
+  }
+  .risk-chip::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 9999px;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  /* A vertical joint between stacked panels on the System sheet — makes the
+     pipeline (intake → reasoning → law → output) read as one instrument,
+     not four unrelated cards. Pure decoration; no layout dependency. */
+  .pipe-joint {
+    @apply mx-auto flex flex-col items-center text-ink-300;
+    width: 1px;
+    padding: 2px 0;
+  }
+  .pipe-joint > i {
+    display: block;
+    width: 1px;
+    height: 9px;
+    background: var(--rule-strong);
+  }
+  .pipe-joint svg {
+    margin: 1px 0;
+    color: #2a7391;
+    opacity: 0.75;
+  }
+
   /* Hatched "danger area" fill, as drawn on charts. */
   .hatch-danger {
     background-image: repeating-linear-gradient(
@@ -570,6 +606,19 @@ body::after {
   }
   .group:hover .badge-ping {
     animation: ping2 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* An always-on alert ring — same ripple as .badge-ping, but not gated
+     behind hover, since a phone has no hover state. Used sparingly for the
+     one glance-able "this needs attention now" moment. */
+  .alert-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 2.5px solid currentColor;
+    opacity: 0.6;
+    pointer-events: none;
+    animation: ping2 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
   }
 
   /* The map is presented as a chart sheet: paper margin, tick marks,

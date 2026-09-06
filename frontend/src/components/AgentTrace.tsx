@@ -135,17 +135,18 @@ export default function AgentTracePanel({
                   // or invisible safety data, is not an acceptable failure.
                   <div
                     key={row.agent}
-                    className="rounded-[2px] border bg-paper-100 px-2.5 py-1.5"
+                    className="group relative rounded-[2px] border bg-paper-100 px-2.5 py-1.5 pl-3 transition-colors hover:bg-paper-150"
                     style={{
                       borderColor:
                         row.status === "ok" || row.status === "skipped"
                           ? "var(--rule-faint)"
                           : STATUS_DOT[row.status] + "66",
+                      boxShadow: `inset 2px 0 0 ${STATUS_DOT[row.status]}`,
                     }}
                   >
                     <div className="flex items-center gap-2 text-[11.5px]">
                       <span
-                        className="h-2 w-2 shrink-0 rotate-45"
+                        className="h-2 w-2 shrink-0 rotate-45 transition-transform group-hover:scale-125"
                         style={{ background: STATUS_DOT[row.status] }}
                       />
                       <span className="w-[96px] shrink-0 font-semibold text-ink-900">

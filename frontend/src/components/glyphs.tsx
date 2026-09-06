@@ -125,6 +125,49 @@ export function CourseArrow({ size = 16, className = "" }: G) {
   );
 }
 
+/** Two drawn swells — used wherever wave height needs a mark, not just a number. */
+export function WaveGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M1.5 7.3 Q5 4 8.5 7.3 T15.5 7.3 T18.5 7.3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M1.5 12.7 Q5 9.4 8.5 12.7 T15.5 12.7 T18.5 12.7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+    </svg>
+  );
+}
+
+/** A wind vane's swirl — used for wind speed. */
+export function WindGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M1.8 7 H12.3 A2.6 2.6 0 1 0 10.2 3.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M1.8 12.3 H14.6 A2.4 2.4 0 1 1 12.3 16.3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      <path d="M1.8 16.9 H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+    </svg>
+  );
+}
+
 export function CrosshairGlyph({ size = 15, className = "" }: G) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import * as api from "../api";
 import type { AuthorityDashboard, Language } from "../types";
+import { CrosshairGlyph, LockGlyph, WarnGlyph } from "./glyphs";
 import { RISK_COLOR } from "./RiskDial";
 
 const T: Record<Language, Record<string, string>> = {
@@ -106,28 +107,33 @@ export default function AuthorityPanel({ language = "en" }: { language?: Languag
   if (!data) return <div className="panel p-6 text-sm italic text-ink-400">{t.loading}</div>;
 
   const tiles = [
-    { key: "monitored", label: t.centres, color: "#1E5F7A" },
-    { key: "extreme", label: t.extreme, color: RISK_COLOR.EXTREME },
-    { key: "high", label: t.high, color: RISK_COLOR.HIGH },
-    { key: "official_warnings", label: t.warnings, color: "#A17000" },
+    { key: "monitored", label: t.centres, color: "#1E5F7A", icon: <CrosshairGlyph size={13} /> },
+    { key: "extreme", label: t.extreme, color: RISK_COLOR.EXTREME, icon: <WarnGlyph size={13} /> },
+    { key: "high", label: t.high, color: RISK_COLOR.HIGH, icon: <WarnGlyph size={13} /> },
+    { key: "official_warnings", label: t.warnings, color: "#A17000", icon: <LockGlyph size={12} /> },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="panel grid grid-cols-2 sm:grid-cols-4">
-        {tiles.map((t, i) => (
+      <div className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
+        {tiles.map((tile, i) => (
           <div
-            key={t.key}
-            className={`px-5 py-4 ${i > 0 ? "border-l" : ""}`}
-            style={{ borderColor: "var(--rule-faint)" }}
+            key={tile.key}
+            className={`group px-5 py-4 transition-colors hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
+            style={{ borderColor: "var(--rule-faint)", borderTop: `2px solid ${tile.color}` }}
           >
             <div
               className="font-display text-[34px] font-black leading-none tabular-nums"
-              style={{ color: t.color }}
+              style={{ color: tile.color }}
             >
-              {data.summary[t.key] ?? 0}
+              {data.summary[tile.key] ?? 0}
             </div>
-            <div className="label mt-1.5">{t.label}</div>
+            <div className="label mt-1.5 flex items-center gap-1.5">
+              <span className="shrink-0 opacity-70" style={{ color: tile.color }}>
+                {tile.icon}
+              </span>
+              {tile.label}
+            </div>
           </div>
         ))}
       </div>
@@ -149,16 +155,17 @@ export default function AuthorityPanel({ language = "en" }: { language?: Languag
             </button>
           </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-[12.5px]">
+        <div className="max-h-[520px] overflow-auto">
+          <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[12.5px]">
             <thead>
-              <tr className="border-b" style={{ borderColor: "var(--rule-strong)" }}>
+              <tr>
                 {[t.hCentre, t.hState, t.hRisk, t.hWave, t.hWind, t.hWarning].map((h, i) => (
                   <th
                     key={h}
-                    className={`py-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-400 ${
+                    className={`sticky top-0 z-10 border-b bg-paper-50/95 py-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-ink-400 backdrop-blur-sm ${
                       i === 0 ? "pl-4 pr-3" : i === 5 ? "px-4" : "px-3"
                     }`}
+                    style={{ borderColor: "var(--rule-strong)" }}
                   >
                     {h}
                   </th>
@@ -166,15 +173,21 @@ export default function AuthorityPanel({ language = "en" }: { language?: Languag
               </tr>
             </thead>
             <tbody>
-              {data.locations.map((row) => {
+              {data.locations.map((row, ri) => {
                 const color = RISK_COLOR[row.risk_category];
+                const critical = row.risk_category === "EXTREME" || row.risk_category === "HIGH";
                 return (
                   <tr
                     key={row.name}
-                    className="border-b transition last:border-0 hover:bg-paper-150"
+                    className={`border-b transition last:border-0 hover:bg-paper-150 ${
+                      ri % 2 === 1 ? "bg-paper-100/50" : ""
+                    }`}
                     style={{ borderColor: "var(--rule-faint)" }}
                   >
-                    <td className="py-2.5 pl-4 pr-3 font-display text-[13.5px] font-bold text-ink-900">
+                    <td
+                      className="relative py-2.5 pl-4 pr-3 font-display text-[13.5px] font-bold text-ink-900"
+                      style={critical ? { boxShadow: `inset 3px 0 0 ${color}` } : undefined}
+                    >
                       {row.name}
                     </td>
                     <td className="px-3 py-2.5 text-ink-500">{row.state}</td>
@@ -186,10 +199,7 @@ export default function AuthorityPanel({ language = "en" }: { language?: Languag
                         >
                           {row.risk_score}
                         </span>
-                        <span
-                          className="border px-1.5 py-px font-mono text-[8.5px] font-bold tracking-wider"
-                          style={{ color, borderColor: color }}
-                        >
+                        <span className="risk-chip" style={{ color, borderColor: color }}>
                           {row.risk_category}
                         </span>
                       </div>

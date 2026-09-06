@@ -1,4 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowUp,
+  Compass as CompassIcon,
+  Layers,
+  MessageCircle,
+  Radar,
+  Settings2,
+  ShieldCheck,
+  Users,
+  Workflow,
+} from "lucide-react";
 import * as api from "../api";
 import type { Language } from "../types";
 import {
@@ -16,6 +27,12 @@ import {
   SpeakerGlyph,
   WarnGlyph,
 } from "./glyphs";
+
+/** Footer link icons — the one spot on the page that borrows from lucide
+ *  instead of the hand-drawn glyph set, kept small and thin-stroke so they
+ *  sit quietly next to the mono labels rather than competing with them. */
+const FOOTER_PRODUCT_ICONS = [CompassIcon, MessageCircle, ShieldCheck, Settings2];
+const FOOTER_EXPLORE_ICONS = [Layers, Workflow, Users, Radar];
 
 /** One icon per agent card — fixed to the crew's role, not translated. */
 const AGENT_ICONS = [
@@ -1163,16 +1180,20 @@ export default function Landing({
             <div>
               <div className="label !text-ink-900">{t.footerProductHeading}</div>
               <ul className="mt-3 space-y-2.5">
-                {[t.cards[0].kicker, t.cards[1].kicker, t.cards[2].kicker, t.footerSystemLabel].map((label, i) => (
-                  <li key={label}>
-                    <button
-                      onClick={() => onEnter((["home", "ask", "authority", "system"] as const)[i])}
-                      className="text-[12.5px] text-ink-600 transition-colors hover:text-chart-600"
-                    >
-                      {label}
-                    </button>
-                  </li>
-                ))}
+                {[t.cards[0].kicker, t.cards[1].kicker, t.cards[2].kicker, t.footerSystemLabel].map((label, i) => {
+                  const Icon = FOOTER_PRODUCT_ICONS[i];
+                  return (
+                    <li key={label}>
+                      <button
+                        onClick={() => onEnter((["home", "ask", "authority", "system"] as const)[i])}
+                        className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
+                      >
+                        <Icon size={13} strokeWidth={1.75} className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500" />
+                        <span className="transition-transform group-hover:translate-x-0.5">{label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -1185,16 +1206,20 @@ export default function Landing({
                   { label: t.navHow, id: "lp-pipeline" },
                   { label: t.footerAgentsLabel, id: "lp-agents" },
                   { label: t.footerTrustLabel, id: "lp-trust" },
-                ].map((x) => (
-                  <li key={x.id}>
-                    <button
-                      onClick={() => document.getElementById(x.id)?.scrollIntoView({ behavior: "smooth" })}
-                      className="text-[12.5px] text-ink-600 transition-colors hover:text-chart-600"
-                    >
-                      {x.label}
-                    </button>
-                  </li>
-                ))}
+                ].map((x, i) => {
+                  const Icon = FOOTER_EXPLORE_ICONS[i];
+                  return (
+                    <li key={x.id}>
+                      <button
+                        onClick={() => document.getElementById(x.id)?.scrollIntoView({ behavior: "smooth" })}
+                        className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
+                      >
+                        <Icon size={13} strokeWidth={1.75} className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500" />
+                        <span className="transition-transform group-hover:translate-x-0.5">{x.label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -1205,17 +1230,19 @@ export default function Landing({
                 <li>
                   <button
                     onClick={onTour}
-                    className="flex items-center gap-1.5 text-[12.5px] text-ink-600 transition-colors hover:text-chart-600"
+                    className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
                   >
-                    <PlayGlyph size={9} /> {t.footerTourLabel}
+                    <PlayGlyph size={9} className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500" />
+                    <span className="transition-transform group-hover:translate-x-0.5">{t.footerTourLabel}</span>
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => (window.location.href = `/?m=1&lang=${language}`)}
-                    className="flex items-center gap-1.5 text-[12.5px] text-ink-600 transition-colors hover:text-chart-600"
+                    className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
                   >
-                    <PhoneGlyph size={11} /> {t.ctaPhone}
+                    <PhoneGlyph size={11} className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500" />
+                    <span className="transition-transform group-hover:translate-x-0.5">{t.ctaPhone}</span>
                   </button>
                 </li>
                 <li>
@@ -1223,9 +1250,10 @@ export default function Landing({
                     href="https://github.com/SaudSatopay/orca-sih26176"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-[12.5px] text-ink-600 transition-colors hover:text-chart-600"
+                    className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
                   >
-                    <GithubGlyph size={12} /> GitHub
+                    <GithubGlyph size={12} className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500" />
+                    <span className="transition-transform group-hover:translate-x-0.5">GitHub</span>
                   </a>
                 </li>
               </ul>
@@ -1237,7 +1265,7 @@ export default function Landing({
             className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between"
             style={{ borderColor: "var(--rule-faint)" }}
           >
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-ink-400">{t.footer}</span>
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-ink-500">{t.footer}</span>
             <div className="flex items-center gap-4">
               {/* language — lives here, not in the navbar: it's a set-once
                   preference, not something reached for on every visit */}
@@ -1249,7 +1277,7 @@ export default function Landing({
                     className={`rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px] font-bold transition ${
                       language === l
                         ? "border-ink-900 bg-ink-900 text-paper-50"
-                        : "text-ink-400 hover:text-ink-800"
+                        : "text-ink-500 hover:text-ink-800"
                     }`}
                     style={language === l ? undefined : { borderColor: "var(--rule)" }}
                   >
@@ -1268,9 +1296,20 @@ export default function Landing({
             </div>
           </div>
 
-          {/* copyright strip */}
-          <div className="pb-4 pt-4 text-center font-mono text-[9px] uppercase tracking-[0.16em] text-ink-300">
-            © {new Date().getFullYear()} ORCA · Built for {t.kicker}
+          {/* copyright strip + back to top */}
+          <div className="relative flex items-center justify-center pb-4 pt-4">
+            <span className="text-center font-mono text-[9px] uppercase tracking-[0.16em] text-ink-500">
+              © {new Date().getFullYear()} ORCA · Built for {t.kicker}
+            </span>
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              aria-label="Back to top"
+              className="group absolute right-0 flex items-center gap-1 rounded-[2px] border px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-ink-500 transition-colors hover:border-ink-900 hover:text-ink-900"
+              style={{ borderColor: "var(--rule)" }}
+            >
+              <ArrowUp size={11} strokeWidth={1.75} className="transition-transform group-hover:-translate-y-0.5" />
+              Top
+            </button>
           </div>
         </footer>
       </Reveal>

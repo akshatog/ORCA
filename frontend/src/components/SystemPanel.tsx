@@ -4,6 +4,18 @@ import type { Language } from "../types";
 import { CourseArrow, FishGlyph, LockGlyph, WarnGlyph } from "./glyphs";
 import { PORTS } from "./LocationPicker";
 
+/** The joint between two stages of the pipeline — purely decorative, so the
+ * four sections below read as one instrument instead of a stack of cards. */
+function PipeJoint() {
+  return (
+    <div className="pipe-joint" aria-hidden>
+      <i />
+      <CourseArrow size={11} className="rotate-90" />
+      <i />
+    </div>
+  );
+}
+
 /** The engine room, in the fisher's three languages. */
 const L10N: Record<Language, Record<string, string>> = {
   en: {
@@ -326,6 +338,8 @@ export default function SystemPanel({
         </div>
       </div>
 
+      <PipeJoint />
+
       {/* ---------------- the data intake ---------------- */}
       <div className="panel overflow-hidden">
         <div className="hd">
@@ -400,6 +414,8 @@ export default function SystemPanel({
         </p>
       </div>
 
+      <PipeJoint />
+
       {/* ---------------- the crew ---------------- */}
       <div className="panel overflow-hidden">
         <div className="hd">
@@ -451,6 +467,8 @@ export default function SystemPanel({
         </div>
       </div>
 
+      <PipeJoint />
+
       {/* ---------------- the safety law ---------------- */}
       <div className="panel hatch-danger overflow-hidden border-risk-extreme/50">
         <div className="hd border-risk-extreme/25">
@@ -471,6 +489,8 @@ export default function SystemPanel({
           </p>
         </div>
       </div>
+
+      <PipeJoint />
 
       {/* ---------------- the live feed ---------------- */}
       <div className="panel rule-double overflow-hidden">
@@ -577,6 +597,8 @@ export default function SystemPanel({
           {t.feedNote}
         </p>
       </div>
+
+      <PipeJoint />
 
       {/* ---------------- where it goes ---------------- */}
       <div className="panel overflow-hidden">
