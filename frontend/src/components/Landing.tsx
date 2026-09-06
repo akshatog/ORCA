@@ -28,13 +28,9 @@ import {
   WarnGlyph,
 } from "./glyphs";
 
-/** Footer link icons — the one spot on the page that borrows from lucide
- *  instead of the hand-drawn glyph set, kept small and thin-stroke so they
- *  sit quietly next to the mono labels rather than competing with them. */
 const FOOTER_PRODUCT_ICONS = [CompassIcon, MessageCircle, ShieldCheck, Settings2];
 const FOOTER_EXPLORE_ICONS = [Layers, Workflow, Users, Radar];
 
-/** One icon per agent card — fixed to the crew's role, not translated. */
 const AGENT_ICONS = [
   CrosshairGlyph,
   SchoolGlyph,
@@ -48,7 +44,6 @@ const AGENT_ICONS = [
   CheckGlyph,
 ];
 
-/** Every word on the front door, in the fisher's three languages. */
 const L10N: Record<
   Language,
   {
@@ -427,7 +422,6 @@ const L10N: Record<
   },
 };
 
-/** Honour the OS "reduce motion" setting — those users get the finished page. */
 function prefersStill(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -435,13 +429,6 @@ function prefersStill(): boolean {
   );
 }
 
-/**
- * Entrance choreography with a projector fail-safe: visibility is driven by
- * STATE + CSS transitions, never by keyframes with fill-mode. If rAF is
- * suspended (hidden tab, non-compositing output) the timeout still flips the
- * state, so the end position — everything visible — is always reached; with
- * reduced motion the content simply starts there.
- */
 function Reveal({
   className = "",
   children,
@@ -465,7 +452,6 @@ function Reveal({
   );
 }
 
-/** Count-up with the same fail-safe as the risk dial: the number always lands. */
 function useCountUp(target: number | null, ms = 1000): string {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -491,11 +477,6 @@ function useCountUp(target: number | null, ms = 1000): string {
   return target == null ? "—" : String(v);
 }
 
-/**
- * Wraps the hero art with a gentle, cursor-driven tilt — the chart "leans"
- * toward the pointer, like paper on a chart table. Desktop-only in effect
- * (touch devices never fire mousemove); reduced-motion users get no tilt.
- */
 function HeroArt({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [t, setT] = useState({ x: 0, y: 0 });
@@ -522,7 +503,6 @@ function HeroArt({ children }: { children: ReactNode }) {
   );
 }
 
-/** Consistent kicker + title (+ optional subtitle) for every section below the hero. */
 function SectionHeading({
   id,
   kicker,
@@ -548,13 +528,6 @@ function SectionHeading({
   );
 }
 
-/**
- * The front door — the chart sheet before you step aboard.
- *
- * One screen that says what ORCA is (ten agents, one safe, explainable
- * decision), proves it is alive (live coastline stats, a running course),
- * and hands the judge three doors in.
- */
 export default function Landing({
   mode,
   language = "en",
@@ -607,12 +580,7 @@ export default function Landing({
 
   return (
     <>
-      {/* ================= NAVBAR — full-bleed, sticky, always reachable =================
-          Deliberately minimal: wordmark, three anchor links, one CTA. Language
-          switch and the hackathon badge moved out — a persistent bar is not
-          the right home for controls you set once or credentials you read once. */}
-      <Reveal>
-        <nav className="sticky top-0 z-20 w-full border-b border-[var(--rule)] bg-paper-50/90 backdrop-blur-sm">
+        <nav className="fixed left-0 top-0 z-50 w-full border-b border-[var(--rule)] bg-paper-50/90 backdrop-blur-sm">
           <div className="mx-auto grid max-w-[1240px] grid-cols-[auto_1fr_auto] items-center gap-8 px-5 py-4">
             <span className="flex shrink-0 items-center gap-2">
               <CompassMark size={26} className="text-ink-900" />
@@ -644,13 +612,11 @@ export default function Landing({
             </button>
           </div>
         </nav>
-      </Reveal>
 
-      <div className="mx-auto flex min-h-full max-w-[1240px] flex-col px-5 py-5">
+      <div className="mx-auto flex min-h-full max-w-[1240px] flex-col px-5 pb-5 pt-[88px]">
       <div className="sea-drift" aria-hidden />
       <div className="fish-drift" aria-hidden />
 
-      {/* ================= HERO SCREEN — fills the rest of the first viewport ================= */}
       <div className="flex min-h-[calc(100svh-70px)] flex-col justify-center py-6">
       {/* hero */}
       <div className="mt-0 grid items-center gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-x-20 xl:gap-x-24">
@@ -676,7 +642,6 @@ export default function Landing({
                 {t.ctaOpen}{" "}
                 <CourseArrow size={13} className="transition-transform group-hover:translate-x-1" />
               </button>
-              {/* full reload on purpose: phone vs console is decided at boot */}
               <button
                 onClick={() => (window.location.href = `/?m=1&lang=${language}`)}
                 className="btn-line !px-5 !py-2.5"
@@ -695,13 +660,6 @@ export default function Landing({
           </Reveal>
         </div>
 
-        {/* hero art: a live marine-intelligence map, not a static illustration.
-            Data layers arrive in sequence (ocean → weather → satellite),
-            the safe course plots itself around the danger zone, and a
-            verdict panel confirms the recommendation once it's ready —
-            the same story ORCA tells inside the real app, compressed
-            into one glance. Visible at every width; sized to balance
-            against the (now bigger) heading on desktop. */}
         <Reveal delay={260} className="mt-2 w-full justify-self-center lg:mt-0 lg:justify-self-end lg:pl-6 xl:pl-10">
           <HeroArt>
           <svg viewBox="0 0 440 300" className="w-full max-w-[480px] lg:max-w-[720px]" aria-hidden>
@@ -731,7 +689,6 @@ export default function Landing({
               )}
             </g>
 
-            {/* a school working the water under the course */}
             <g fill="#1E5F7A" opacity="0.5">
               <g className="svg-swim">
                 <path d="M96 205 C99 201 104 200.5 108 203.8 L114 201 C113 202.3 112.5 203.6 112.5 205 C112.5 206.4 113 207.7 114 209 L108 206.2 C104 209.5 99 209 96 205 Z" />
@@ -743,7 +700,6 @@ export default function Landing({
                 <path d="M104 236 C107 232 112 231.5 116 234.8 L122 232 C121 233.3 120.5 234.6 120.5 236 C120.5 237.4 121 238.7 122 240 L116 237.2 C112 240.5 107 240 104 236 Z" />
               </g>
             </g>
-            {/* another pair near the destination — the reason the buoy is there */}
             <g fill="#1D7A50" opacity="0.45">
               <g className="svg-swim" style={{ animationDelay: "0.4s" }}>
                 <path d="M330 100 C333 96 338 95.5 342 98.8 L348 96 C347 97.3 346.5 98.6 346.5 100 C346.5 101.4 347 102.7 348 104 L342 101.2 C338 104.5 333 104 330 100 Z" />
@@ -752,7 +708,6 @@ export default function Landing({
                 <path d="M352 116 C355 112 360 111.5 364 114.8 L370 112 C369 113.3 368.5 114.6 368.5 116 C368.5 117.4 369 118.7 370 120 L364 117.2 C360 120.5 355 120 352 116 Z" />
               </g>
             </g>
-            {/* sea-surface symbols and soundings scattered on the water */}
             {[
               [40, 80], [120, 45], [330, 130], [70, 170], [250, 250], [380, 200],
             ].map(([x, y], i) => (
@@ -769,7 +724,6 @@ export default function Landing({
             <text x="150" y="230" fontFamily="Georgia" fontStyle="italic" fontSize="11" fill="#2A7391" opacity="0.65">27</text>
             <text x="300" y="90" fontFamily="Georgia" fontStyle="italic" fontSize="11" fill="#2A7391" opacity="0.65">44</text>
 
-            {/* ============ cyclone — tracked from satellite, breathing danger zone ============ */}
             <path
               className="cyclone-trajectory"
               d="M250 20 C 240 44 220 66 206 92"
@@ -792,7 +746,6 @@ export default function Landing({
               />
               <circle r="2" fill="#AF2318" />
             </g>
-            {/* hatched danger areas the course detours around — both breathe gently */}
             <g>
               <rect
                 className="risk-pulse"
@@ -808,11 +761,7 @@ export default function Landing({
                 fill="url(#hatch-warning)" stroke="#BF4E12" strokeWidth="1.2" strokeDasharray="7 4"
               />
             </g>
-            {/* direct track — the wrong answer */}
             <line x1="60" y1="252" x2="366" y2="60" stroke="#5D7386" strokeWidth="1.6" strokeDasharray="2 6" opacity="0.6" />
-            {/* the safe course draws itself in once, then a flowing overlay
-                takes over — pathLength=100 keeps the dash math simple
-                regardless of the curve's real length */}
             <path
               pathLength={100}
               d="M60 252 C 105 240 120 205 138 178 C 155 152 130 120 160 84 C 185 55 260 40 320 46 C 342 48 356 52 366 60"
@@ -832,16 +781,12 @@ export default function Landing({
               strokeDasharray="11 8"
               strokeLinecap="round"
             />
-            {/* live position — a ping that actually sails the plotted course,
-                looping bow to buoy, fading in and out at each end so it
-                reads as a tracked vessel rather than a decoration */}
             <g aria-hidden>
               <circle className="hero-sail-ring" r="7" fill="none" stroke="#1D7A50" strokeWidth="2" />
               <circle className="hero-sail hero-sail--tail" r="4" fill="#1D7A50" />
               <circle className="hero-sail hero-sail--tail2" r="5.5" fill="#1D7A50" />
               <circle className="hero-sail hero-sail--head" r="7.5" fill="#FBF7ED" stroke="#1D7A50" strokeWidth="3" />
             </g>
-            {/* boat, riding the swell */}
             <g transform="translate(60 252)">
               <g className="svg-bob">
                 <circle r="22" fill="none" stroke="#2A7391" strokeWidth="1.4" opacity="0.5" />
@@ -850,7 +795,6 @@ export default function Landing({
                 <path d="M-6 4 q3 2.4 6 0 t6 0" stroke="#FBF7ED" strokeWidth="1.4" fill="none" />
               </g>
             </g>
-            {/* destination buoy, hailing */}
             <g transform="translate(366 60)">
               <circle className="svg-ping" r="17" fill="none" stroke="#1D7A50" strokeWidth="2" />
               <g className="svg-bob" style={{ animationDelay: "1.2s" }}>
@@ -860,10 +804,6 @@ export default function Landing({
                 </text>
               </g>
             </g>
-            {/* compass — fixed pivot at the centre (the static dot), a classic
-                two-tone needle (bold north tip, faint south tail) spinning
-                around it. The needle shape is built symmetric about the
-                pivot so its rotation is centred, not orbiting off-axis. */}
             <g transform="translate(400 250)" opacity="0.75">
               <circle r="24" fill="none" stroke="#12212D" strokeWidth="1.3" />
               <text y="-27" textAnchor="middle" fontFamily="'Spline Sans Mono Variable',monospace" fontSize="8" fill="#12212D">
@@ -876,63 +816,55 @@ export default function Landing({
               <circle r="1.6" fill="#12212D" />
             </g>
 
-            {/* ============ route verdict — integrated map annotation ============ */}
-{/* ============ route verdict — clean map annotation ============ */}
-<g
-  className="hero-verdict"
-  transform="translate(210 245)"
->
-  {/* status dot */}
-  <circle
-    cx="0"
-    cy="0"
-    r="3.5"
-    fill="#1D7A50"
-  />
+            <g
+              className="hero-verdict"
+              transform="translate(210 245)"
+            >
+              <circle
+                cx="0"
+                cy="0"
+                r="3.5"
+                fill="#1D7A50"
+              />
 
-  {/* main verdict */}
-  <text
-    x="10"
-    y="4"
-    fontFamily="'Spline Sans Mono Variable', monospace"
-    fontSize="8"
-    fontWeight="700"
-    fill="#12212D"
-    letterSpacing="1"
-  >
-    SAFE ROUTE
-  </text>
+              <text
+                x="10"
+                y="4"
+                fontFamily="'Spline Sans Mono Variable', monospace"
+                fontSize="8"
+                fontWeight="700"
+                fill="#12212D"
+                letterSpacing="1"
+              >
+                SAFE ROUTE
+              </text>
 
-  {/* confidence */}
-  <text
-    x="10"
-    y="17"
-    fontFamily="'Spline Sans Mono Variable', monospace"
-    fontSize="6.5"
-    fontWeight="600"
-    fill="#5D7386"
-    letterSpacing="0.8"
-  >
-    {heroConfidence}% CONFIDENCE
-  </text>
-
-  {/* subtle chart line */}
-  <line
-    x1="10"
-    y1="23"
-    x2="115"
-    y2="23"
-    stroke="#1D7A50"
-    strokeWidth="1"
-    opacity="0.35"
-  />
-</g>
+              <text
+                x="10"
+                y="17"
+                fontFamily="'Spline Sans Mono Variable', monospace"
+                fontSize="6.5"
+                fontWeight="600"
+                fill="#5D7386"
+                letterSpacing="0.8"
+              >
+                {heroConfidence}% CONFIDENCE
+              </text>
+              <line
+                x1="10"
+                y1="23"
+                x2="115"
+                y2="23"
+                stroke="#1D7A50"
+                strokeWidth="1"
+                opacity="0.35"
+              />
+            </g>
           </svg>
           </HeroArt>
         </Reveal>
       </div>
 
-      {/* scroll cue — tells the visitor there is more below the fold */}
       <Reveal delay={760} className="mt-8 flex justify-center">
         <button
           onClick={() =>
@@ -950,7 +882,6 @@ export default function Landing({
 
       <div id="lp-more" />
 
-      {/* live stats strip */}
       <Reveal delay={420}>
         <div className="panel mt-12 grid grid-cols-2 sm:grid-cols-5">
           {stats.map((x, i) => (
@@ -1247,7 +1178,7 @@ export default function Landing({
                 </li>
                 <li>
                   <a
-                    href="https://github.com/SaudSatopay/orca-sih26176"
+                    href="https://github.com/akshatog/ORCA"
                     target="_blank"
                     rel="noreferrer"
                     className="group flex items-center gap-2 text-[12.5px] text-ink-500 transition-colors hover:text-chart-600"
@@ -1286,12 +1217,12 @@ export default function Landing({
                 ))}
               </span>
               <a
-                href="https://github.com/SaudSatopay/orca-sih26176"
+                href="https://github.com/akshatog/ORCA"
                 target="_blank"
                 rel="noreferrer"
                 className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-chart-600 transition-colors hover:text-ink-900"
               >
-                github.com/SaudSatopay/orca-sih26176
+                https://github.com/akshatog/ORCA
               </a>
             </div>
           </div>
