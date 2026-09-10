@@ -84,6 +84,20 @@ def run_smoke_test() -> int:
         print("SKIPPED (no request_id)")
         failures.append("GET /trace skipped due to /plan failure")
 
+    # 4b. State retrieval
+    print("[4b] Testing GET /state/{request_id} ...", end=" ")
+    if request_id:
+        res = client.get(f"/state/{request_id}")
+        if res.status_code == 200 and "evidence" in res.json():
+            s_data = res.json()
+            print(f"PASS (Evidence: {len(s_data.get('evidence', []))}, Conflicts: {len(s_data.get('conflict_log', []))})")
+        else:
+            print(f"FAIL ({res.status_code}: {res.text})")
+            failures.append("GET /state/{request_id} failed")
+    else:
+        print("SKIPPED (no request_id)")
+        failures.append("GET /state skipped due to /plan failure")
+
     # 5. Non-existent Trace
     print("[5/10] Testing GET /trace/nonexistent (404 expected) ...", end=" ")
     res = client.get("/trace/nonexistent-trace-id-xyz")

@@ -339,6 +339,34 @@ export default function MarineMap({
           `<b>${r.name}</b><br/>${r.distance_km} km · ${Math.round(r.eta_minutes)} min<br/><span style="font-size:11px;opacity:.8">${r.notes}</span>`,
         )
         .addTo(group);
+
+      // Render waypoint condition risk dots along sampled path
+      if (r.waypoint_conditions && r.waypoint_conditions.length > 0) {
+        r.waypoint_conditions.forEach((wp) => {
+          const wpColor =
+            wp.segment_risk >= 50
+              ? "#c62828"
+              : wp.segment_risk >= 30
+              ? "#f57c00"
+              : "#2e7d32";
+          L.circleMarker([wp.latitude, wp.longitude], {
+            radius: 5,
+            fillColor: wpColor,
+            color: "#ffffff",
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.9,
+          })
+            .bindPopup(
+              `<div style="font-family:${MONO};font-size:11px;line-height:1.4">
+                <b>Waypoint #${wp.sample_index + 1}</b> (${wp.distance_from_origin_km.toFixed(1)} km)<br/>
+                <span style="color:${wpColor};font-weight:bold">Risk: ${Math.round(wp.segment_risk)} (${wp.risk_category})</span><br/>
+                Wave: ${wp.wave_height_m.toFixed(1)} m · Wind: ${wp.wind_speed_kmh.toFixed(1)} km/h
+              </div>`
+            )
+            .addTo(group);
+        });
+      }
     });
 
     // fishing grounds as numbered buoys: paper face, rating-coloured ring,

@@ -44,5 +44,17 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:33 | TASK-7.1 | done: updated DECISIONS.md with Phase 1-6 architectural decisions and 08_implementation_phases.md with completed milestones | open: TASK-7.2 through 8.13 | deviation: none
 2026-09-10 23:34 | TASK-7.2 | done: executed comprehensive end-to-end API smoke test (10/10 endpoints passing) and legacy 5-scenario demo test (100% pass) | open: TASK-7.3 through 8.13 | deviation: none
 2026-09-10 23:35 | TASK-7.3 | done: updated AGENT.md with Phase 8 roadmap, component specifications, and developer instructions | open: Phase 8 (TASK-8.1 through TASK-8.13) | deviation: none
+2026-09-10 23:40 | TASK-8.1 | done: implemented EvidenceProvenancePanel with authority tiers, confidence meters, sensor freshness badges, and search | open: TASK-8.2 through 8.13 | deviation: none
+2026-09-10 23:41 | TASK-8.2 | done: implemented ConflictLogPanel showing winning authoritative sources, overridden candidates, and rationale | open: TASK-8.3 through 8.13 | deviation: none
+2026-09-10 23:42 | TASK-8.3 | done: implemented DecisionPipelineVisualizer with LangGraph DAG node stepper, latency breakdown, and state telemetry drawer | open: TASK-8.4 through 8.13 | deviation: none
+2026-09-10 23:43 | TASK-8.4 | done: implemented VoyageTracker with active fleet list, start voyage from port, live storm alert trigger, and end voyage | open: TASK-8.5 through 8.13 | deviation: none
+2026-09-10 23:44 | TASK-8.5 | done: implemented AlertBanner with urgent hazard display, condition deterioration alerts, and 1-click safe harbour diversion | open: TASK-8.6 through 8.13 | deviation: none
+2026-09-10 23:45 | TASK-8.6 | done: wired desktop App.tsx with Ops & Provenance tab, live state polling, safe port diversion, and AlertBanner | open: TASK-8.7 through 8.13 | deviation: none
+2026-09-10 23:46 | TASK-8.7 | done: updated MobileApp.tsx with voyage tracking card, live storm alerts, safe port diversion, and voice actions | open: TASK-8.8 through 8.13 | deviation: none
+2026-09-10 23:47 | TASK-8.8 | done: implemented 7-language selector (en, hi, mr, ta, te, bn, ml) across Desktop and Mobile headers | open: TASK-8.9 through 8.13 | deviation: none
+2026-09-10 23:48 | TASK-8.9 | done: implemented public/sw.js maritime caching service worker with network-first for live APIs and cache-first for fonts/assets | open: TASK-8.10 through 8.13 | deviation: none
+2026-09-10 23:48 | TASK-8.10 | done: registered service worker in main.tsx with offline detection and console readiness verification | open: TASK-8.11 through 8.13 | deviation: none
+2026-09-10 23:49 | TASK-8.11 | done: verified Sarvam Bulbul TTS and Saaras STT voice integration on both mobile and desktop with browser fallback | open: TASK-8.12 through 8.13 | deviation: none
+2026-09-10 23:50 | TASK-8.12 | done: implemented colored route waypoint risk markers (green/amber/red circle markers with wave, wind, segment risk tooltips) in MarineMap.tsx | open: TASK-8.13 | deviation: none
+2026-09-10 23:52 | TASK-8.13 | done: verified full frontend build with npx tsc --noEmit (0 errors), npm run build (clean production bundle), and backend test suite (76/76 passing, 10/10 endpoints passing) | open: none | deviation: none
 <!-- entries go here, oldest first -->
-

@@ -28,12 +28,23 @@ import RiskCard from "./components/RiskCard";
 import { RISK_COLOR } from "./components/RiskDial";
 import SystemPanel from "./components/SystemPanel";
 import RiskTimeline from "./components/RiskTimeline";
+import EvidenceProvenancePanel from "./components/EvidenceProvenancePanel";
+import ConflictLogPanel from "./components/ConflictLogPanel";
+import DecisionPipelineVisualizer from "./components/DecisionPipelineVisualizer";
+import VoyageTracker from "./components/VoyageTracker";
+import AlertBanner from "./components/AlertBanner";
 import type {
+  AlertEvent,
   ChatMessage,
   ChatResponse,
+  DecisionState,
+  Evidence_v2,
   FishingOutlook,
   Language,
   Location,
+  SupportedLanguage,
+  TraceEntry,
+  Voyage,
   ZoneFeature,
 } from "./types";
 
@@ -41,7 +52,7 @@ const SESSION = "demo";
 const RADIUS_KM = 100;
 const DEFAULT_PORT = PORTS[0]; // Mumbai — used only if location is unavailable
 
-type AppTab = "home" | "ask" | "authority" | "system";
+type AppTab = "home" | "ask" | "authority" | "system" | "ops";
 /** "landing" is the front door; every deep link (?tab, ?demo, ?tour, ?at) skips it. */
 type Tab = AppTab | "landing";
 
@@ -60,9 +71,9 @@ const SCENARIOS: {
 ];
 
 const TAB_LABEL: Record<Language, Record<AppTab, string>> = {
-  en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System" },
-  hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली" },
-  mr: { home: "आज", ask: "ORCA ला विचारा", authority: "प्रशासन", system: "प्रणाली" },
+  en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System", ops: "Ops & Provenance" },
+  hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली", ops: "अभियान व साक्ष्य" },
+  mr: { home: "आज", ask: "ORCA ला विचारा", authority: "प्रशासन", system: "प्रणाली", ops: "मोहीम व पुरावे" },
 };
 
 /** The app chrome, in the fisher's language. */
@@ -116,9 +127,21 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [latest, setLatest] = useState<ChatResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [langChoice, setLangChoice] = useState<Language | null>(null);
-  const [detected, setDetected] = useState<Language>("en");
-  const language = langChoice ?? detected;
+  const [langChoice, setLangChoice] = useState<SupportedLanguage | null>(null);
+  const [detected, setDetected] = useState<SupportedLanguage>("en");
+  const language: SupportedLanguage = langChoice ?? detected;
+  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+
+  // ---- ORCA 2.0 Operational & Provenance state ----
+  const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
+  const [activeVoyages, setActiveVoyages] = useState<Voyage[]>([]);
+  const [planDecision, setPlanDecision] = useState<DecisionState | null>(null);
+  const [planEvidence, setPlanEvidence] = useState<Evidence_v2[]>([]);
+  const [planTrace, setPlanTrace] = useState<TraceEntry[]>([]);
+  const [planConflicts, setPlanConflicts] = useState<any[]>([]);
+  const [planRequestId, setPlanRequestId] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+
   const [zones, setZones] = useState<ZoneFeature[]>([]);
   const [mode, setMode] = useState<string>("DEMO");
   const [switching, setSwitching] = useState(false);
@@ -130,6 +153,86 @@ export default function App() {
   const [outlook, setOutlook] = useState<FishingOutlook | null>(null);
   const [loadingOutlook, setLoadingOutlook] = useState(false);
   const [focusRank, setFocusRank] = useState<number | null>(null);
+
+  const handleRunPlan = useCallback(async () => {
+    setLoadingPlan(true);
+    try {
+      const p = await api.fetchPlan({
+        location: place ? { lat: place.latitude, lon: place.longitude, name: place.label } : null,
+        query: "Can I safely go fishing near here tomorrow morning?",
+        language: language,
+      });
+      setPlanDecision(p);
+      const reqId = p.request_id;
+      if (reqId) {
+        setPlanRequestId(reqId);
+        const state = await api.fetchState(reqId).catch(() => null);
+        if (state) {
+          setPlanEvidence(state.evidence || []);
+          setPlanTrace(state.trace || []);
+          setPlanConflicts(state.conflict_log || []);
+        } else {
+          const tr = await api.fetchTrace(reqId).catch(() => []);
+          setPlanTrace(tr);
+        }
+      }
+    } catch (e) {
+      console.warn("Live plan fetch error:", e);
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, [place, language]);
+
+  const handleStartVoyage = async (loc: { name?: string; lat: number; lon: number }) => {
+    await api.startVoyage({
+      location: loc,
+      voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
+    });
+    const refreshed = await api.getActiveVoyages().catch(() => []);
+    setActiveVoyages(refreshed);
+  };
+
+  const handleEndVoyage = async (voyageId: string) => {
+    await api.endVoyage(voyageId);
+    const refreshed = await api.getActiveVoyages().catch(() => []);
+    setActiveVoyages(refreshed);
+    if (activeAlert?.voyage_id === voyageId) {
+      setActiveAlert(null);
+    }
+  };
+
+  const handleTriggerTestAlert = async (voyageId: string) => {
+    const res = await api.triggerAlert({
+      voyage_id: voyageId,
+      severity: "SEVERE",
+      headline: "Rapid Storm Intensification: Cyclonic gusts detected offshore",
+      advisory: {
+        authority: "IMD",
+        constraint_type: "NO_GO",
+        named_region: place?.label || "Coastal Sector",
+        severity: "SEVERE",
+        valid_from: new Date().toISOString(),
+        valid_until: new Date(Date.now() + 86400000).toISOString(),
+        source_text: "Squally wind speed reaching 55-65 kmph gusting to 75 kmph over sea areas.",
+        source_reference: "IMD-EMERGENCY-BULLETIN",
+        confidence: 0.95,
+      },
+    });
+    if (res.alerts && res.alerts.length > 0) {
+      setActiveAlert(res.alerts[0]);
+    }
+  };
+
+  const handleDivertSafePort = (safePort: { name: string; lat: number; lon: number }) => {
+    setPlace({
+      latitude: safePort.lat,
+      longitude: safePort.lon,
+      label: safePort.name,
+      source: "map",
+    });
+    setActiveAlert(null);
+    setTab("home");
+  };
 
   // ---- guided tour ----
   const [tourOn, setTourOn] = useState(false);
@@ -345,14 +448,15 @@ export default function App() {
       setSwitching(false);
     }
   };
+  const cycleMode = toggleMode;
 
   const pickLocation = useCallback((lat: number, lon: number) => {
     setPlace({ latitude: lat, longitude: lon, label: "Selected point", source: "map" });
   }, []);
 
   const suggestions = useMemo(() => latest?.suggestions ?? [], [latest]);
-  const tabLabels = TAB_LABEL[language] ?? TAB_LABEL.en;
-  const ui = UI[language] ?? UI.en;
+  const tabLabels = TAB_LABEL[uiLang] ?? TAB_LABEL.en;
+  const ui = UI[uiLang] ?? UI.en;
 
   const homeOrigin: Location | null = place
     ? {
@@ -369,8 +473,8 @@ export default function App() {
         <ChartDefs />
         <Landing
           mode={mode}
-          language={language}
-          onLanguage={setLangChoice}
+          language={uiLang}
+          onLanguage={(l) => setLangChoice(l)}
           onEnter={setTab}
           onTour={startTour}
           onScenario={runScenario}
@@ -412,17 +516,18 @@ export default function App() {
               <span className="mt-1 font-mono text-[13px] font-bold text-ink-800">SIH26176</span>
             </div>
 
+            {/* mode switch */}
             <button
-              onClick={toggleMode}
+              onClick={cycleMode}
               disabled={switching}
-              title="Switch between cached demo data and live public providers"
+              title={`Running on ${mode} data — click to switch`}
               className="group flex flex-col justify-center border-l px-5 py-3 text-left transition hover:bg-paper-150 disabled:opacity-50"
               style={{ borderColor: "var(--rule-faint)" }}
             >
               <span className="label">{ui.dataEdition}</span>
               <span
                 className={`mt-1 font-mono text-[13px] font-bold ${
-                  mode === "LIVE" ? "text-risk-low" : "text-risk-high"
+                  mode === "LIVE" ? "text-risk-low" : "text-chart-600"
                 }`}
               >
                 {switching ? "…" : mode}
@@ -448,19 +553,27 @@ export default function App() {
               style={{ borderColor: "var(--rule-faint)" }}
             >
               <span className="label">{ui.lang}</span>
-              <span className="mt-1 flex gap-1">
-                {(["en", "hi", "mr"] as Language[]).map((l) => (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {([
+                  { code: "en", label: "EN" },
+                  { code: "hi", label: "हिं" },
+                  { code: "mr", label: "मरा" },
+                  { code: "ta", label: "தமி" },
+                  { code: "te", label: "తెలు" },
+                  { code: "bn", label: "বাং" },
+                  { code: "ml", label: "മല" },
+                ] as { code: SupportedLanguage; label: string }[]).map((l) => (
                   <button
-                    key={l}
-                    onClick={() => setLangChoice(l)}
-                    className={`rounded-[2px] border px-1.5 py-0.5 font-mono text-[10.5px] font-bold transition ${
-                      language === l
+                    key={l.code}
+                    onClick={() => setLangChoice(l.code)}
+                    className={`rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px] font-bold transition ${
+                      language === l.code
                         ? "border-ink-900 bg-ink-900 text-paper-50"
                         : "text-ink-400 hover:text-ink-800"
                     }`}
-                    style={language === l ? undefined : { borderColor: "var(--rule)" }}
+                    style={language === l.code ? undefined : { borderColor: "var(--rule)" }}
                   >
-                    {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
+                    {l.label}
                   </button>
                 ))}
               </span>
@@ -480,7 +593,7 @@ export default function App() {
           className="flex items-end gap-6 border-t px-5"
           style={{ borderColor: "var(--rule-faint)" }}
         >
-          {(["home", "ask", "authority", "system"] as AppTab[]).map((x) => (
+          {(["home", "ask", "authority", "system", "ops"] as AppTab[]).map((x) => (
             <button
               key={x}
               onClick={() => setTab(x)}
@@ -495,10 +608,17 @@ export default function App() {
         </nav>
       </header>
 
+      <AlertBanner
+        alert={activeAlert}
+        onDismiss={() => setActiveAlert(null)}
+        onDivert={handleDivertSafePort}
+        language={uiLang}
+      />
+
       {tourOn && (
         <GuidedTour
           step={tourStep}
-          language={language}
+          language={uiLang}
           paused={tourPaused}
           onPause={() => setTourPaused((p) => !p)}
           onNext={() => gotoStep(tourStep + 1)}
@@ -521,7 +641,7 @@ export default function App() {
       {tab === "home" && (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
           <div className="space-y-4">
-            <LocationPicker current={place} language={language} onPick={setPlace} />
+            <LocationPicker current={place} language={uiLang} onPick={setPlace} />
 
             <MarineMap
               origin={homeOrigin}
@@ -531,7 +651,7 @@ export default function App() {
               radiusKm={outlook?.radius_km ?? RADIUS_KM}
               routes={outlook?.routes ?? []}
               geofence={[]}
-              language={language}
+              language={uiLang}
               onPickLocation={pickLocation}
               focusRank={focusRank}
             />
@@ -619,7 +739,7 @@ export default function App() {
             {outlook && (
               <FishingPanel
                 data={outlook}
-                language={language}
+                language={uiLang}
                 onSelectArea={(rank) => setFocusRank(rank)}
               />
             )}
@@ -643,7 +763,7 @@ export default function App() {
                 <span className="grid w-[18px] shrink-0 place-items-center rounded-full bg-ink-900 font-display text-[10px] font-bold leading-none text-paper-50" style={{ height: 18 }}>
                   {s.n}
                 </span>
-                <span className="font-semibold">{s.label[language] ?? s.label.en}</span>
+                <span className="font-semibold">{s.label[uiLang] ?? s.label.en}</span>
                 <span className="font-mono text-[10px] uppercase tracking-wide opacity-60">{s.hint}</span>
               </button>
             ))}
@@ -655,10 +775,10 @@ export default function App() {
                 messages={messages}
                 busy={busy}
                 agentEvents={agentEvents}
-                language={language}
+                language={uiLang}
                 suggestions={suggestions}
                 onSend={send}
-                onLanguage={setLangChoice}
+                onLanguage={(l) => setLangChoice(l)}
               />
             </div>
 
@@ -672,7 +792,7 @@ export default function App() {
                 routes={latest?.routes ?? []}
                 geofence={latest?.geofence ?? []}
                 alerts={latest?.alerts ?? []}
-                language={language}
+                language={uiLang}
               />
 
               {latest?.risk && (
@@ -782,9 +902,44 @@ export default function App() {
         </>
       )}
 
-      {tab === "authority" && <AuthorityPanel language={language} />}
+      {tab === "authority" && <AuthorityPanel language={uiLang} />}
 
-      {tab === "system" && <SystemPanel mode={mode} language={language} />}
+      {tab === "system" && <SystemPanel mode={mode} language={uiLang} />}
+
+      {tab === "ops" && (
+        <div className="mx-auto w-full space-y-6">
+          <VoyageTracker
+            activeVoyages={activeVoyages}
+            onStartVoyage={handleStartVoyage}
+            onEndVoyage={handleEndVoyage}
+            onTriggerTestAlert={handleTriggerTestAlert}
+            currentPort={{
+              name: place?.label || DEFAULT_PORT.name,
+              lat: place?.latitude || DEFAULT_PORT.lat,
+              lon: place?.longitude || DEFAULT_PORT.lon,
+            }}
+            language={uiLang}
+            isLoading={loadingPlan}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ConflictLogPanel conflicts={planConflicts} language={uiLang} />
+            <DecisionPipelineVisualizer
+              trace={planTrace}
+              requestId={planRequestId || undefined}
+              onRefresh={handleRunPlan}
+              isLoading={loadingPlan}
+            />
+          </div>
+
+          <EvidenceProvenancePanel
+            evidence={planEvidence}
+            language={uiLang}
+            onRefresh={handleRunPlan}
+            isLoading={loadingPlan}
+          />
+        </div>
+      )}
     </div>
   );
 }

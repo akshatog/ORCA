@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as api from "../api";
-import type { FishingOutlook, Language, ZoneFeature } from "../types";
+import type { AlertEvent, FishingOutlook, Language, SupportedLanguage, Voyage, ZoneFeature } from "../types";
 import { RATING_COLOR } from "./FishingPanel";
+import AlertBanner from "./AlertBanner";
 import {
   BoatGlyph,
   ChartDefs,
@@ -100,17 +101,33 @@ const T: Record<Language, Record<string, string>> = {
   },
 };
 
-const SPEECH_LOCALE: Record<Language, string> = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" };
+const SPEECH_LOCALE: Record<string, string> = {
+  en: "en-IN",
+  hi: "hi-IN",
+  mr: "mr-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+  bn: "bn-IN",
+  ml: "ml-IN",
+};
 
-function speak(text: string, lang: Language) {
+async function speak(text: string, lang: string) {
   try {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = SPEECH_LOCALE[lang];
-    u.rate = 0.95;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    const loc = SPEECH_LOCALE[lang] || "hi-IN";
+    const audioBlob = await api.speakText(text, loc, "aditya");
+    const audio = new Audio(URL.createObjectURL(audioBlob));
+    audio.play();
+    return audio;
   } catch {
-    /* no TTS — the text is on screen anyway */
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = SPEECH_LOCALE[lang] || "hi-IN";
+      u.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      /* no TTS fallback */
+    }
   }
 }
 
@@ -126,11 +143,16 @@ function getRecognition(): any | null {
 }
 
 export default function MobileApp() {
-  const [language, setLanguage] = useState<Language>(() => {
-    const l = new URLSearchParams(window.location.search).get("lang");
-    return l === "hi" || l === "mr" || l === "en" ? l : "en";
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    const l = new URLSearchParams(window.location.search).get("lang") as SupportedLanguage;
+    return l || "en";
   });
-  const t = T[language] ?? T.en;
+  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+  const t = T[uiLang] ?? T.en;
+
+  const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
+  const [activeVoyage, setActiveVoyage] = useState<Voyage | null>(null);
+  const [voyageLoading, setVoyageLoading] = useState(false);
 
   const [tab, setTab] = useState<MTab>(() => {
     const tp = new URLSearchParams(window.location.search).get("tab");
@@ -216,6 +238,73 @@ export default function MobileApp() {
       alive = false;
     };
   }, [place?.lat, place?.lon, language]);
+
+  // ---------------------------------------------------------------- voyage & alerts
+  useEffect(() => {
+    api
+      .getActiveVoyages()
+      .then((v) => {
+        if (v.length > 0) setActiveVoyage(v[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!activeVoyage) return;
+    const timer = setInterval(async () => {
+      try {
+        const active = await api.getActiveVoyages();
+        const current = active.find((v) => v.voyage_id === activeVoyage.voyage_id);
+        if (current) {
+          setActiveVoyage(current);
+        }
+      } catch {}
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [activeVoyage?.voyage_id]);
+
+  const handleToggleVoyage = async () => {
+    if (activeVoyage) {
+      setVoyageLoading(true);
+      try {
+        await api.endVoyage(activeVoyage.voyage_id);
+        setActiveVoyage(null);
+        setActiveAlert(null);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setVoyageLoading(false);
+      }
+    } else if (place) {
+      setVoyageLoading(true);
+      try {
+        const res = await api.startVoyage({
+          location: {
+            lat: place.lat,
+            lon: place.lon,
+            name: outlook?.location.nearest_landing_centre || place.name || "Kochi",
+          },
+          voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
+        });
+        setActiveVoyage({
+          voyage_id: res.voyage_id,
+          location: res.location || { lat: place.lat, lon: place.lon, name: place.name },
+          started_at: res.started_at,
+          status: "ACTIVE",
+        });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setVoyageLoading(false);
+      }
+    }
+  };
+
+  const handleDivertSafePort = (safePort: { name: string; lat: number; lon: number }) => {
+    setPlace({ lat: safePort.lat, lon: safePort.lon, name: safePort.name });
+    setActiveAlert(null);
+    setTab("map");
+  };
 
   // ---------------------------------------------------------------- voice
   const speakPlan = () => {
@@ -322,27 +411,79 @@ export default function MobileApp() {
             </div>
           )}
         </div>
-        <div className="ml-auto flex gap-1">
-          {(["en", "hi", "mr"] as Language[]).map((l) => (
+        <div className="ml-auto flex items-center gap-1 overflow-x-auto max-w-[200px] no-scrollbar py-0.5">
+          {([
+            ["en", "EN"],
+            ["hi", "हिं"],
+            ["mr", "मरा"],
+            ["ta", "தமி"],
+            ["te", "తెలు"],
+            ["bn", "বাংলা"],
+            ["ml", "മല"],
+          ] as const).map(([code, label]) => (
             <button
-              key={l}
-              onClick={() => setLanguage(l)}
-              className={`min-w-[42px] rounded-[2px] border px-2 py-2 font-mono text-[13px] font-bold transition ${
-                language === l
+              key={code}
+              onClick={() => setLanguage(code as SupportedLanguage)}
+              className={`shrink-0 rounded-[2px] border px-2 py-1 font-mono text-[11px] font-bold transition ${
+                language === code
                   ? "border-ink-900 bg-ink-900 text-paper-50"
-                  : "text-ink-400"
+                  : "text-ink-400 bg-paper-50"
               }`}
-              style={language === l ? undefined : { borderColor: "var(--rule)" }}
+              style={language === code ? undefined : { borderColor: "var(--rule)" }}
             >
-              {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
+              {label}
             </button>
           ))}
         </div>
       </header>
 
+      {/* active alert banner */}
+      {activeAlert && (
+        <div className="px-3 pt-2">
+          <AlertBanner
+            alert={activeAlert}
+            onDismiss={() => setActiveAlert(null)}
+            onDivert={handleDivertSafePort}
+            language={uiLang}
+          />
+        </div>
+      )}
+
       {/* ================= TODAY ================= */}
       {tab === "today" && (
         <main className="flex-1 space-y-3 px-3 pb-24 pt-3">
+          {/* Voyage status & quick toggle */}
+          <div className="panel flex items-center justify-between gap-3 bg-paper-50 p-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    activeVoyage ? "bg-risk-low animate-pulse" : "bg-ink-300"
+                  }`}
+                />
+                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-700">
+                  {activeVoyage ? "Voyage Active" : "In Harbour"}
+                </span>
+              </div>
+              <div className="mt-0.5 truncate font-mono text-[10px] text-ink-500">
+                {activeVoyage
+                  ? `Voyage ${activeVoyage.voyage_id.slice(0, 8)} • ${activeVoyage.location?.name || "At Sea"}`
+                  : "Ready to log departure"}
+              </div>
+            </div>
+            <button
+              onClick={handleToggleVoyage}
+              disabled={voyageLoading || !place}
+              className={`shrink-0 rounded-[3px] px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wide transition ${
+                activeVoyage
+                  ? "border border-risk-extreme/60 bg-risk-extreme/10 text-risk-extreme"
+                  : "bg-chart-600 text-paper-50"
+              }`}
+            >
+              {voyageLoading ? "..." : activeVoyage ? "End Trip" : "Start Trip"}
+            </button>
+          </div>
+
           {!outlook && (
             <div className="panel flex flex-col items-center gap-3 p-10 text-center">
               <CompassMark
@@ -503,7 +644,7 @@ export default function MobileApp() {
             radiusKm={outlook?.radius_km ?? 100}
             routes={outlook?.routes ?? []}
             geofence={[]}
-            language={language}
+            language={uiLang}
             onPickLocation={(lat, lon) => setPlace({ lat, lon, name: "—" })}
             focusRank={focusRank}
             heightPx={mapH}

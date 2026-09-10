@@ -5,6 +5,7 @@ import type {
   DecisionState,
   FishingOutlook,
   Language,
+  ORCAState,
   PositionCheck,
   RiskCategory,
   SupportedLanguage,
@@ -58,7 +59,7 @@ export interface AgentEvent {
 export async function askStream(
   params: {
     message: string;
-    language?: Language;
+    language?: SupportedLanguage | string;
     latitude?: number;
     longitude?: number;
     locationName?: string;
@@ -146,7 +147,7 @@ export function checkPosition(lat: number, lon: number): Promise<PositionCheck> 
 export function fishingOutlook(
   lat: number,
   lon: number,
-  opts: { radiusKm?: number; days?: number; lang?: Language } = {},
+  opts: { radiusKm?: number; days?: number; lang?: SupportedLanguage | string } = {},
 ): Promise<FishingOutlook> {
   const p = new URLSearchParams({
     lat: String(lat),
@@ -274,6 +275,10 @@ export function fetchTrace(requestId: string): Promise<TraceEntry[]> {
   return json<TraceEntry[]>(`/trace/${encodeURIComponent(requestId)}`);
 }
 
+export function fetchState(requestId: string): Promise<ORCAState> {
+  return json<ORCAState>(`/state/${encodeURIComponent(requestId)}`);
+}
+
 export function startVoyage(params: {
   location: { lat: number; lon: number; name?: string };
   region_geometry?: any;
@@ -330,7 +335,7 @@ export async function transcribeVoice(
 export async function speakText(
   text: string,
   language = "hi-IN",
-  voiceId = "meera",
+  voiceId = "aditya",
 ): Promise<Blob> {
   const res = await fetch("/voice/speak", {
     method: "POST",

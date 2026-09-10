@@ -56,3 +56,12 @@ def trace_endpoint(request_id: str) -> List[Dict[str, Any]]:
     if not state:
         raise HTTPException(status_code=404, detail=f"Trace not found for request_id: {request_id}")
     return state.trace
+
+
+@router.get("/state/{request_id}", response_model=ORCAState)
+def state_endpoint(request_id: str) -> ORCAState:
+    """Retrieve the complete ORCAState including evidence, conflict log, and trace."""
+    state = STATE_STORE.get(request_id)
+    if not state:
+        raise HTTPException(status_code=404, detail=f"State not found for request_id: {request_id}")
+    return state
