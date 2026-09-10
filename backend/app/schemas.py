@@ -1,4 +1,4 @@
-﻿"""Typed contracts shared by every ORCA agent.
+"""Typed contracts shared by every ORCA agent.
 
 Rule: agents never return prose. They return these structures, each carrying
 provenance (value + unit + source + timestamp + confidence). The Explanation
@@ -120,6 +120,16 @@ class RouteLeg(BaseModel):
     longitude: float
 
 
+class WaypointCondition(BaseModel):
+    lat: float
+    lon: float
+    distance_from_start_km: float
+    wave_m: float
+    wind_kmh: float
+    risk_factor: float          # 0-1
+    risk_level: Literal["LOW", "MODERATE", "HIGH", "EXTREME"]
+
+
 class RouteOption(BaseModel):
     name: str
     kind: Literal["safest", "shortest", "alternate"]
@@ -131,6 +141,8 @@ class RouteOption(BaseModel):
     penalties: Dict[str, float] = Field(default_factory=dict)
     recommended: bool = False
     notes: str = ""
+    waypoint_conditions: List[WaypointCondition] = Field(default_factory=list)
+    path_risk_score: Optional[float] = None
 
 
 class GeofenceAlert(BaseModel):

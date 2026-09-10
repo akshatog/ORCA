@@ -15,11 +15,12 @@ the shortest track clips a naval exclusion area, ORCA routes around it.
 from __future__ import annotations
 
 import heapq
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from ..data.geo import (Coord, distance_to_polygon_km, haversine_km,
                         point_in_polygon, RESTRICTED_ZONES, route_zone_conflicts)
-from ..schemas import RouteLeg, RouteOption
+from ..schemas import RouteLeg, RouteOption, WaypointCondition
+from ..config import ROUTE_SCORING
 
 GRID_STEPS = 20                # nodes per axis; 400-node graph — still instant
 ZONE_PENALTY_KM = 400.0        # effective cost of entering a restricted polygon
@@ -236,12 +237,124 @@ def plan_routes(origin: Coord, dest: Coord, *, wave_m: Optional[float] = None,
                if direct_conflicts else "Shortest track, no restricted areas on the way."),
     )
 
-    # If the direct line is clean and barely shorter, don't invent a detour.
-    if not direct_conflicts and safe_km <= direct_km * 1.03:
-        direct.recommended = True
-        safest.recommended = False
-        options = [direct, safest]
-    else:
+    # Score waypoint path risk for both options
+    score_route_path(safest, origin_wave=wave_m, origin_wind=wind_kmh)
+    score_route_path(direct, origin_wave=wave_m, origin_wind=wind_kmh)
+
+    # Re-ranking:
+    # 1. Zone conflicts immediately disqualify direct route from being recommended.
+    # 2. If no zone conflicts, compare path_risk_score: lower risk route wins.
+    if direct_conflicts:
+        safest.recommended = True
+        direct.recommended = False
         options = [safest, direct]
+    elif direct.path_risk_score is not None and safest.path_risk_score is not None:
+        if direct.path_risk_score <= safest.path_risk_score and safe_km <= direct_km * 1.05:
+            direct.recommended = True
+            safest.recommended = False
+            options = [direct, safest]
+        else:
+            safest.recommended = True
+            direct.recommended = False
+            options = [safest, direct]
+    else:
+        if not direct_conflicts and safe_km <= direct_km * 1.03:
+            direct.recommended = True
+            safest.recommended = False
+            options = [direct, safest]
+        else:
+            options = [safest, direct]
 
     return options
+
+
+def score_route_path(
+    route: RouteOption,
+    *,
+    origin_wave: Optional[float] = None,
+    origin_wind: Optional[float] = None,
+    weather_cell_fn: Optional[Callable[[float, float], Tuple[float, float]]] = None,
+) -> RouteOption:
+    """Sample conditions along the route path and compute path_risk_score.
+
+    Path risk formula from spec:
+        score = 0.7 * avg(waypoint_factors) + 0.3 * max_spike(waypoint_factors)
+    """
+    pts = [(leg.latitude, leg.longitude) for leg in route.legs]
+    if len(pts) < 2:
+        return route
+
+    # Calculate cumulative distances
+    cum_dist = [0.0]
+    for i in range(1, len(pts)):
+        d = haversine_km(pts[i - 1], pts[i])
+        cum_dist.append(cum_dist[-1] + d)
+
+    total_dist = cum_dist[-1]
+    if total_dist <= 0:
+        return route
+
+    num_samples = max(2, ROUTE_SCORING.samples_per_route)
+    waypoints: List[WaypointCondition] = []
+
+    for s_idx in range(num_samples):
+        target_d = (s_idx / (num_samples - 1)) * total_dist
+
+        # Locate segment containing target_d
+        seg_idx = 0
+        while seg_idx < len(cum_dist) - 1 and cum_dist[seg_idx + 1] < target_d:
+            seg_idx += 1
+
+        seg_start_d = cum_dist[seg_idx]
+        seg_end_d = cum_dist[min(seg_idx + 1, len(cum_dist) - 1)]
+        seg_len = seg_end_d - seg_start_d
+
+        fraction = 0.0 if seg_len <= 0 else (target_d - seg_start_d) / seg_len
+        p1 = pts[seg_idx]
+        p2 = pts[min(seg_idx + 1, len(pts) - 1)]
+
+        lat = p1[0] + fraction * (p2[0] - p1[0])
+        lon = p1[1] + fraction * (p2[1] - p1[1])
+
+        # Query or synthesize weather along this waypoint
+        w_m = origin_wave if origin_wave is not None else 1.2
+        w_kmh = origin_wind if origin_wind is not None else 20.0
+        if weather_cell_fn is not None:
+            try:
+                w_m, w_kmh = weather_cell_fn(lat, lon)
+            except Exception:
+                pass
+
+        norm_wave = min(1.0, max(0.0, w_m / 4.0))
+        norm_wind = min(1.0, max(0.0, w_kmh / 60.0))
+        rf = (ROUTE_SCORING.wave_weight * norm_wave) + (ROUTE_SCORING.wind_weight * norm_wind)
+        rf = round(max(0.0, min(1.0, rf)), 3)
+
+        if rf <= 0.25:
+            lvl = "LOW"
+        elif rf <= 0.50:
+            lvl = "MODERATE"
+        elif rf <= 0.79:
+            lvl = "HIGH"
+        else:
+            lvl = "EXTREME"
+
+        waypoints.append(
+            WaypointCondition(
+                lat=round(lat, 4),
+                lon=round(lon, 4),
+                distance_from_start_km=round(target_d, 1),
+                wave_m=round(w_m, 2),
+                wind_kmh=round(w_kmh, 1),
+                risk_factor=rf,
+                risk_level=lvl,
+            )
+        )
+
+    avg_rf = sum(w.risk_factor for w in waypoints) / len(waypoints)
+    max_rf = max(w.risk_factor for w in waypoints)
+    path_risk = round(((ROUTE_SCORING.avg_weight * avg_rf) + (ROUTE_SCORING.spike_weight * max_rf)) * 100.0, 1)
+
+    route.waypoint_conditions = waypoints
+    route.path_risk_score = path_risk
+    return route

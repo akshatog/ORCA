@@ -24,4 +24,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 22:52 | TASK-2.2 | done: implemented POST /plan endpoint returning DecisionState and persisting in-memory state | open: TASK-2.3 through 8.13 | deviation: none
 2026-09-10 22:52 | TASK-2.3 | done: implemented GET /trace/{request_id} endpoint returning execution trace with 404 handling | open: TASK-2.4 through 8.13 | deviation: none
 2026-09-10 22:53 | TASK-2.4 | done: verified legacy /api/chat and smoke_test demo scenarios all pass with zero regressions | open: TASK-2.5 through 8.13 | deviation: none
+2026-09-10 22:56 | TASK-2.5 | done: implemented route waypoint risk scoring (path-integrated risk) with WaypointCondition schema and storm band re-ranking | open: Phase 3 (TASK-3.1 through TASK-3.4) | deviation: none
 <!-- entries go here, oldest first -->
