@@ -1,10 +1,15 @@
 import type {
+  AlertEvent,
   AuthorityDashboard,
   ChatResponse,
+  DecisionState,
   FishingOutlook,
   Language,
   PositionCheck,
   RiskCategory,
+  SupportedLanguage,
+  TraceEntry,
+  Voyage,
   ZoneFeature,
 } from "./types";
 
@@ -248,3 +253,94 @@ export function config() {
     note: string;
   }>(`${BASE}/config`);
 }
+
+// --------------------------------------------------------------------------
+// ORCA 2.0 Plan, Trace, Voyage, Alert & Voice Endpoints
+// --------------------------------------------------------------------------
+
+export function fetchPlan(params: {
+  query?: string;
+  intent_text?: string;
+  language?: SupportedLanguage | string;
+  location?: { lat: number; lon: number; name?: string } | null;
+}): Promise<DecisionState> {
+  return json<DecisionState>("/plan", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function fetchTrace(requestId: string): Promise<TraceEntry[]> {
+  return json<TraceEntry[]>(`/trace/${encodeURIComponent(requestId)}`);
+}
+
+export function startVoyage(params: {
+  location: { lat: number; lon: number; name?: string };
+  region_geometry?: any;
+  voyage_id?: string;
+}): Promise<{ voyage_id: string; started_at: string; status: string; location: any }> {
+  return json("/voyages/start", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function getActiveVoyages(): Promise<Voyage[]> {
+  return json<Voyage[]>("/voyages/active");
+}
+
+export function endVoyage(voyageId: string): Promise<{ status: string; voyage_id: string }> {
+  return json(`/voyages/${encodeURIComponent(voyageId)}/end`, {
+    method: "POST",
+  });
+}
+
+export function triggerAlert(params: {
+  voyage_id?: string;
+  evidence?: any;
+  advisory?: any;
+  severity?: string;
+  headline?: string;
+}): Promise<{ alerts: AlertEvent[] }> {
+  return json<{ alerts: AlertEvent[] }>("/alerts/trigger", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function transcribeVoice(
+  audioBlob: Blob,
+  language = "hi-IN",
+): Promise<{ transcript: string; language: string; engine: string }> {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "recording.wav");
+  formData.append("language", language);
+
+  const res = await fetch("/voice/transcribe", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail?.error || `${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function speakText(
+  text: string,
+  language = "hi-IN",
+  voiceId = "meera",
+): Promise<Blob> {
+  const res = await fetch("/voice/speak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language, voice_id: voiceId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail?.error || `${res.status} ${res.statusText}`);
+  }
+  return res.blob();
+}
+
