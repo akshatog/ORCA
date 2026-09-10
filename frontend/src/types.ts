@@ -1,4 +1,5 @@
 export type Language = "en" | "hi" | "mr";
+export type SupportedLanguage = Language | "ta" | "te" | "bn" | "ml" | "gu" | "kn" | "or";
 export type DataMode = "LIVE" | "DEMO" | "CACHE";
 export type RiskCategory = "LOW" | "MODERATE" | "HIGH" | "EXTREME";
 
@@ -75,6 +76,7 @@ export interface RouteOption {
   penalties: Record<string, number>;
   recommended: boolean;
   notes: string;
+  waypoint_conditions?: WaypointCondition[];
 }
 
 export interface GeofenceAlert {
@@ -309,3 +311,114 @@ export interface ChatMessage {
   text: string;
   response?: ChatResponse;
 }
+
+// --------------------------------------------------------------------------
+// ORCA 2.0 Schemas
+// --------------------------------------------------------------------------
+
+export interface WaypointCondition {
+  sample_index: number;
+  distance_from_origin_km: number;
+  latitude: number;
+  longitude: number;
+  wave_height_m: number;
+  wind_speed_kmh: number;
+  segment_risk: number;
+  risk_category: RiskCategory;
+  is_safe: boolean;
+}
+
+export interface Evidence_v2 {
+  metric: string;
+  value: any;
+  unit?: string | null;
+  source: string;
+  observed_at: string;
+  retrieved_at: string;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  geometry?: any | null;
+  confidence: number;
+  authority_level: "official_advisory" | "official_forecast" | "external_forecast" | "derived" | "heuristic";
+  mode: "LIVE" | "CACHED" | "STALE" | "DEMO";
+  conflict_status?: "selected" | "overridden" | null;
+  conflict_reason?: string | null;
+}
+
+export interface AdvisoryConstraint {
+  authority: string;
+  constraint_type: "NO_GO" | "CAUTION" | "PORT_WARNING";
+  named_region: string;
+  geometry?: any | null;
+  severity: "LOW" | "MODERATE" | "HIGH" | "SEVERE";
+  valid_from: string;
+  valid_until: string;
+  source_text: string;
+  source_reference: string;
+  confidence: number;
+  localized_summaries?: Record<string, string>;
+}
+
+export interface DecisionState {
+  status: "SAFE" | "CAUTION" | "UNSAFE" | "INSUFFICIENT_EVIDENCE";
+  risk_score: number;
+  reasons: string[];
+  active_advisories?: AdvisoryConstraint[];
+  trip_window?: Record<string, any> | null;
+  route?: Record<string, any> | null;
+  trip_economics?: Record<string, any> | null;
+  language: string;
+  explanation: string;
+  generated_at: string;
+}
+
+export interface SafePort {
+  name: string;
+  lat: number;
+  lon: number;
+  distance_km: number;
+}
+
+export interface AlertEvent {
+  voyage_id: string;
+  previous_status: string;
+  new_status: string;
+  reason: string;
+  safe_port: SafePort;
+  triggered_at: string;
+}
+
+export interface TraceEntry {
+  node_name: string;
+  status: "ok" | "failed" | "skipped";
+  latency_ms: number;
+  summary: string;
+}
+
+export interface ORCAState {
+  request_id: string;
+  intent: "operational" | "analytical";
+  raw_query: string;
+  language: string;
+  location?: Location | null;
+  evidence: Evidence_v2[];
+  advisories: AdvisoryConstraint[];
+  conflict_log: any[];
+  decision?: DecisionState | null;
+  trace: TraceEntry[];
+}
+
+export interface Voyage {
+  voyage_id: string;
+  location: {
+    name?: string;
+    lat: number;
+    lon: number;
+  };
+  region_geometry?: any | null;
+  started_at: string;
+  ended_at?: string | null;
+  status: "ACTIVE" | "ENDED";
+  last_decision?: DecisionState | null;
+}
+

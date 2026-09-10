@@ -38,4 +38,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:16 | TASK-4.7 | done: implemented Sarvam AI Saaras STT and Bulbul TTS voice service in services/voice.py and endpoints in api/voice.py with browser fallbacks and unit tests | open: TASK-4.8 through 8.13 | deviation: none
 2026-09-10 23:18 | TASK-4.8 | done: extended Language types, added Unicode script detection for Indian languages (ta, te, bn, ml, gu, kn, or) and regional phrasebooks in services/i18n.py | open: TASK-4.9 through 8.13 | deviation: none
 2026-09-10 23:19 | TASK-4.9 | done: implemented advisory translation using Sarvam Mayura in services/translate.py, populating localized_summaries on AdvisoryConstraint, with unit tests | open: Phase 5 (TASK-5.1 through TASK-5.2) | deviation: none
+2026-09-10 23:23 | TASK-5.1 | done: added ORCA 2.0 TypeScript types (Evidence_v2, AdvisoryConstraint, DecisionState, AlertEvent, ORCAState, TraceEntry, WaypointCondition, Voyage) to types.ts, verified with npx tsc --noEmit | open: TASK-5.2 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
