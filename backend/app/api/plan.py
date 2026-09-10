@@ -45,6 +45,7 @@ def plan_endpoint(req: PlanRequest, response: Response) -> DecisionState:
     if not state.decision:
         raise HTTPException(status_code=500, detail="Pipeline failed to produce a valid DecisionState")
 
+    state.decision.request_id = state.request_id
     return state.decision
 
 

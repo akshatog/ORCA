@@ -118,12 +118,32 @@ These components are battle-tested. Do not rewrite, refactor, or "improve" them:
 3. **Commit** with the task ID in the message: `git commit -m "TASK-0.1: create config YAML files"`
 4. **Verify** before claiming done — run the verification step specified in the task.
 
-## Commit discipline
+## Phase Status & Phase 8 Instructions
 
-- One commit per completed task (or meaningful checkpoint within a large task)
-- Message format: `TASK-X.Y: <what was done>`
-- Never commit broken code — verify first
-- `docs/PROGRESS.md` updated in the same commit as the task's code
+### Completed Phases
+- **Phase 0 (Foundation):** Risk & economics YAMLs, `schemas_v2.py`, mock fixtures & edge cases.
+- **Phase 1 (LLM Layer):** Multi-provider LLM chain (Groq → Cerebras → Gemini Flash → Template), Advisory Compiler.
+- **Phase 2 (Core Pipeline):** LangGraph StateGraph pipeline, `POST /plan`, `GET /trace/{request_id}`, path-integrated route waypoint scoring.
+- **Phase 3 (Safety & Alerts):** Conflict resolver, active voyage store, `on_evidence_change()` alert engine with safe port calculation.
+- **Phase 4 (Data Layer):** GDACS, StormGlass, IMD, INCOIS scrapers, APScheduler, source registry, Sarvam Saaras STT + Bulbul TTS, extended Indian languages + Sarvam Mayura translation.
+- **Phase 5 (Frontend Minimal Wiring):** TypeScript types (`Evidence_v2`, `DecisionState`, `SupportedLanguage`, etc.) and API client functions (`fetchPlan`, `fetchTrace`, `startVoyage`, `endVoyage`, `triggerAlert`, `transcribeVoice`, `speakText`).
+- **Phase 6 (Testing):** 76 unit tests passing across all layers (`pytest tests/`).
+- **Phase 7 (Docs & Polish):** `DECISIONS.md`, `08_implementation_phases.md`, and comprehensive API smoke test (`smoke_test_all_endpoints.py`).
+
+### Phase 8 — Full Frontend Build Workflow
+Phase 8 connects the new ORCA 2.0 backend capabilities into rich UI components:
+1. **TASK-8.1 Evidence Provenance Panel:** Component showing all evidence items, authorities, timestamps, sensor coordinates, and data mode badges (`LIVE`, `CACHED`, `STALE`, `DEMO`).
+2. **TASK-8.2 Conflict Log Panel:** Component highlighting data disagreements between official advisories, physical buoys, and NWP forecasts, displaying resolution logic.
+3. **TASK-8.3 Decision Pipeline Visualizer:** Graph/stepper component showing LangGraph node execution order, latencies, and statuses (`ok`, `skipped`, `failed`).
+4. **TASK-8.4 Voyage Tracker:** Active voyage monitor showing departure port, current coordinate, active route, and emergency diversion controls.
+5. **TASK-8.5 Real-time Alert Banner:** Urgent header/floating banner rendering incoming `AlertEvent` payloads with nearest safe harbour recommendation.
+6. **TASK-8.6 Wire Research Web View:** Integrate panels into desktop researcher interface.
+7. **TASK-8.7 Wire Fisherman App View:** Integrate mobile PWA view (`MobileApp.tsx`) with high-contrast, large-button navigation.
+8. **TASK-8.8 Regional Language Switcher:** Expand UI localization dictionary with strings for Tamil (`ta`), Telugu (`te`), Bengali (`bn`), and Malayalam (`ml`).
+9. **TASK-8.9 & 8.10 PWA Offline Cache & Manifest:** Service worker caching offline maps/fixtures and web app manifest for home-screen installation.
+10. **TASK-8.11 Voice UI Integration:** Push-to-talk microphone recording sent to `/voice/transcribe` and audio stream playback from `/voice/speak`.
+11. **TASK-8.12 Leaflet Route Waypoint Risk Dots:** Color-code sampled route waypoints (Green/Amber/Red) on the interactive map.
+12. **TASK-8.13 Production Build & End-to-End Verification:** `npm run build` and end-to-end integration test.
 
 ## Reporting back
 

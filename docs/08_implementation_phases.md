@@ -5,47 +5,55 @@ Solo builder with AI coding agents.
 
 ---
 
-## Phase 0 — Foundation (Sep 10, first)
+## Phase 0 — Foundation (Sep 10) [COMPLETED]
 TASK-0.1 Config YAML, TASK-0.2 schemas_v2.py, TASK-0.3 mock data, TASK-0.4 DECISIONS.md
 
-**Blocking:** Nothing else starts until schemas + mock data exist.
+**Status:** Completed & committed (`b7ceafc`, `2ced700`, `4a4cbe0`, `bbfe991`).
 
-## Phase 1 — LLM Layer (Sep 10)
+## Phase 1 — LLM Layer (Sep 10) [COMPLETED]
 TASK-1.1 Multi-provider LLM (Groq→Cerebras→Gemini→Template), TASK-1.2 Advisory Compiler
 
-## Phase 2 — Core Pipeline (Sep 10)
+**Status:** Completed & committed (`1cdd0e7`, `f72c67a`).
+
+## Phase 2 — Core Pipeline (Sep 10) [COMPLETED]
 TASK-2.1 LangGraph graph, TASK-2.2 POST /plan, TASK-2.3 GET /trace/{id},
 TASK-2.4 verify /api/chat, TASK-2.5 route waypoint risk scoring
 
+**Status:** Completed & committed (`94d9f59`, `325ec44`, `831ea11`).
 **Milestone:** `/plan` returns valid `DecisionState`. Routes have `waypoint_conditions[]` with colored risk dots.
 
-## Phase 3 — Safety & Alerts (Sep 10)
+## Phase 3 — Safety & Alerts (Sep 10) [COMPLETED]
 TASK-3.1 Conflict Resolver, TASK-3.2 Voyage store, TASK-3.3 on_evidence_change,
 TASK-3.4 Voyage/alert API
 
+**Status:** Completed & committed (`25b09e7`, `d81a463`, `f65c6b2`, `4c7ec3b`).
 **Milestone:** Start voyage → inject severe advisory → `AlertEvent` fires → safe port returned.
 
-## Phase 4 — Data Layer (Sep 11 morning)
+## Phase 4 — Data Layer (Sep 10) [COMPLETED]
 TASK-4.1 GDACS (15min), TASK-4.2 StormGlass (2hr), TASK-4.3 IMD scraper (1hr),
 TASK-4.4 INCOIS PFZ scraper (6hr), TASK-4.5 Tiered scheduler, TASK-4.6 Source registry,
 TASK-4.7 Sarvam voice (STT+TTS), TASK-4.8 Language extension (TA/TE/BN/ML),
 TASK-4.9 Advisory translation
 
-**Milestone:** Live data flowing. Scraper pulls real advisory. Hindi voice works.
-Tamil-script query detected and answered in Tamil.
+**Status:** Completed & committed (`85dd8a3`, `46c73b4`, `d264326`, `1e322ef`, `c86bae3`, `c0d1592`, `5980c3b`).
+**Milestone:** Live data flowing. Scrapers pull advisories/PFZs. Sarvam voice & Mayura translation operational.
 
-## Phase 5 — Frontend Minimal Wiring (Sep 10, end of day)
-TASK-5.1 New TypeScript types (including WaypointCondition), TASK-5.2 New API functions
+## Phase 5 — Frontend Minimal Wiring (Sep 10) [COMPLETED]
+TASK-5.1 New TypeScript types (including WaypointCondition, SupportedLanguage), TASK-5.2 New API functions
 
-## Phase 6 — Testing (Sep 10 evening + Sep 11)
+**Status:** Completed & committed (`242f4b3`, `ff6d7eb`). Clean TypeScript compile and Vite build.
+
+## Phase 6 — Testing (Sep 10) [COMPLETED]
 TASK-6.1 Schema tests, TASK-6.2 Risk engine, TASK-6.3 Advisory compiler,
 TASK-6.4 Conflict resolver, TASK-6.5 Alert engine, TASK-6.6 Route waypoint scoring,
 TASK-6.7 Scheduler, TASK-6.8 Language detection
 
-## Phase 7 — Polish & Docs (Sep 11 evening)
+**Status:** Completed & committed (`7b1b013`). 76 passing automated unit tests across 15 suites.
+
+## Phase 7 — Polish & Docs (Sep 10) [IN PROGRESS]
 TASK-7.1 Update all docs, TASK-7.2 Smoke test all endpoints, TASK-7.3 Update AGENT.md
 
-## Phase 8 — Full Frontend Build (Sep 11)
+## Phase 8 — Full Frontend Build (Sep 11) [NEXT]
 TASK-8.1 Evidence Provenance Panel, TASK-8.2 Conflict Log, TASK-8.3 Decision Pipeline Viz,
 TASK-8.4 Voyage Tracker, TASK-8.5 Alert Banner, TASK-8.6 Wire Research Web,
 TASK-8.7 Wire Fisherman App, TASK-8.8 Language switcher upgrade (TA/TE/BN/ML),
@@ -59,15 +67,14 @@ TASK-8.13 Frontend build + full integration test
 
 ```
 SEP 10 (Today):
-  Phase 0 → 1 → 2 → 3 → 5 → 6 (core tests)
-  Target: full backend pipeline against mock data
+  Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 (ALL BACKEND + CORE TESTS COMPLETE)
+  Phase 7: Docs & API Smoke Testing (current)
 
 SEP 11 (Tomorrow):
-  Phase 4 (full day) → Phase 8 → Phase 6 (remaining) → Phase 7
-  Target: live data, voice, 6 languages, full frontend
+  Phase 8: Full Frontend Build (Components, PWA offline, Voice UI, Map dots, E2E)
 
 SEP 12 (Morning only):
-  Final smoke test, backup demo video. NO new features.
+  Final smoke test, backup demo video, judge presentation readiness. NO new features.
 ```
 
 ---

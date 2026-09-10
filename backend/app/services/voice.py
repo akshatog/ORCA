@@ -62,7 +62,7 @@ def transcribe(
     locale = normalize_language_code(language_hint)
     headers = {"api-subscription-key": key}
     files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
-    data = {"model": "saaras:v1", "language_code": locale}
+    data = {"model": "saaras:v3", "language_code": locale}
 
     http_client = client or httpx.Client(timeout=12.0)
     resp = http_client.post(SARVAM_STT_URL, headers=headers, files=files, data=data)
@@ -74,10 +74,16 @@ def transcribe(
         raise RuntimeError(f"Sarvam STT failed with status {resp.status_code}")
 
 
+SARVAM_SPEAKERS = {
+    "aditya", "ritu", "ashutosh", "priya", "neha", 
+    "rahul", "pooja", "rohan", "simran", "kavya", "amit", "dev"
+}
+
+
 def speak(
     text: str,
     language_code: str = "hi-IN",
-    voice_id: str = "meera",
+    voice_id: str = "aditya",
     client: Optional[httpx.Client] = None,
 ) -> bytes:
     """Synthesize speech using Sarvam Bulbul TTS.
@@ -92,6 +98,7 @@ def speak(
         return b""
 
     locale = normalize_language_code(language_code)
+    chosen_speaker = voice_id.lower() if voice_id and voice_id.lower() in SARVAM_SPEAKERS else "aditya"
     headers = {
         "api-subscription-key": key,
         "Content-Type": "application/json",
@@ -99,13 +106,13 @@ def speak(
     payload = {
         "inputs": [text[:500]],  # Bulbul standard segment length limit
         "target_language_code": locale,
-        "speaker": voice_id or "meera",
+        "speaker": chosen_speaker,
         "pitch": 0,
         "pace": 1.0,
         "loudness": 1.5,
         "speech_sample_rate": 16000,
         "enable_preprocessing": True,
-        "model": "bulbul:v1",
+        "model": "bulbul:v3",
     }
 
     http_client = client or httpx.Client(timeout=12.0)

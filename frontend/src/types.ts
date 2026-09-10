@@ -360,6 +360,7 @@ export interface AdvisoryConstraint {
 }
 
 export interface DecisionState {
+  request_id?: string;
   status: "SAFE" | "CAUTION" | "UNSAFE" | "INSUFFICIENT_EVIDENCE";
   risk_score: number;
   reasons: string[];
@@ -389,10 +390,12 @@ export interface AlertEvent {
 }
 
 export interface TraceEntry {
-  node_name: string;
+  node_name?: string;
+  agent?: string;
   status: "ok" | "failed" | "skipped";
   latency_ms: number;
   summary: string;
+  timestamp?: string;
 }
 
 export interface ORCAState {

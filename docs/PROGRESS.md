@@ -41,4 +41,8 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:23 | TASK-5.1 | done: added ORCA 2.0 TypeScript types (Evidence_v2, AdvisoryConstraint, DecisionState, AlertEvent, ORCAState, TraceEntry, WaypointCondition, Voyage) to types.ts, verified with npx tsc --noEmit | open: TASK-5.2 through 8.13 | deviation: none
 2026-09-10 23:25 | TASK-5.2 | done: implemented ORCA 2.0 client API functions (fetchPlan, fetchTrace, startVoyage, endVoyage, triggerAlert, transcribeVoice, speakText) in api.ts, verified with tsc and vite build | open: Phase 6 (TASK-6.1 through TASK-6.8) | deviation: none
 2026-09-10 23:26 | TASK-6.1-6.8 | done: executed and verified complete automated test suites (76 total passing tests across schemas, risk engine, advisory compiler, conflict resolver, alert engine, route scoring, scheduler, language detection) | open: Phase 7 (TASK-7.1 through TASK-7.3) & Phase 8 | deviation: none
+2026-09-10 23:33 | TASK-7.1 | done: updated DECISIONS.md with Phase 1-6 architectural decisions and 08_implementation_phases.md with completed milestones | open: TASK-7.2 through 8.13 | deviation: none
+2026-09-10 23:34 | TASK-7.2 | done: executed comprehensive end-to-end API smoke test (10/10 endpoints passing) and legacy 5-scenario demo test (100% pass) | open: TASK-7.3 through 8.13 | deviation: none
+2026-09-10 23:35 | TASK-7.3 | done: updated AGENT.md with Phase 8 roadmap, component specifications, and developer instructions | open: Phase 8 (TASK-8.1 through TASK-8.13) | deviation: none
 <!-- entries go here, oldest first -->
+

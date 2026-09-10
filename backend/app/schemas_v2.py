@@ -73,6 +73,7 @@ class AdvisoryConstraint(BaseModel):
 # DecisionState — unified decision payload returned by /plan
 # --------------------------------------------------------------------------
 class DecisionState(BaseModel):
+    request_id: Optional[str] = None
     status: Literal["SAFE", "CAUTION", "UNSAFE", "INSUFFICIENT_EVIDENCE"]
     risk_score: float = Field(ge=0.0, le=100.0) # 0-100
     reasons: List[str]                          # human-readable, each tied to specific Evidence

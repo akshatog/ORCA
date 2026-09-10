@@ -20,7 +20,7 @@ router = APIRouter(tags=["ORCA 2.0 Voice"])
 class SpeakRequest(BaseModel):
     text: str = Field(..., description="Text narrative to synthesize")
     language: str = Field(default="hi-IN", description="Language locale (e.g. hi-IN, mr-IN, ta-IN)")
-    voice_id: Optional[str] = Field(default="meera", description="Sarvam speaker voice ID")
+    voice_id: Optional[str] = Field(default="aditya", description="Sarvam speaker voice ID")
 
 
 class TranscribeResponse(BaseModel):
@@ -59,7 +59,7 @@ async def transcribe_endpoint(
 def speak_endpoint(req: SpeakRequest):
     """Synthesize text narrative to streaming WAV audio."""
     try:
-        audio_bytes = speak(req.text, language_code=req.language, voice_id=req.voice_id or "meera")
+        audio_bytes = speak(req.text, language_code=req.language, voice_id=req.voice_id or "aditya")
         return Response(content=audio_bytes, media_type="audio/wav")
     except ValueError as ve:
         raise HTTPException(status_code=503, detail={"error": str(ve), "browser_fallback": True})

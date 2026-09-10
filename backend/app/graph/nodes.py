@@ -50,6 +50,7 @@ AUTHORITY_RANKS = {
 def _trace_entry(agent: str, status: str, latency_ms: int, summary: str) -> dict:
     return {
         "agent": agent,
+        "node_name": agent,
         "status": status,
         "latency_ms": latency_ms,
         "summary": summary,

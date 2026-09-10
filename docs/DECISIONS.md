@@ -123,5 +123,46 @@ Decision: Centralized all test fixtures and 8 explicit edge cases in `backend/ap
 Reason: Guarantees that the pipeline, safety floors, conflict resolver, and fallbacks can be exhaustively exercised and validated without calling external networks or relying on scattered mocks in agents.
 Affects: `backend/app/data/mock_data/`, `backend/tests/test_mock_data.py`.
 
+## 2026-09-10 — Advisory Compiler and Confidence Guardrails
+Decision: If LLM generated confidence for an advisory is below 0.70 or if the advisory text cannot be parsed reliably, fall back automatically to rule-based heuristic extraction without crashing or blocking.
+Reason: Marine safety cannot depend on unverified or low-confidence LLM parsing of weather warnings. Deterministic regex and severity floors guarantee consistent constraint generation.
+Affects: `backend/app/services/advisory_compiler.py`, `backend/tests/test_advisory_compiler.py`.
+
+## 2026-09-10 — LangGraph StateGraph Architecture
+Decision: Implement LangGraph StateGraph pipeline (`backend/app/graph/`) with node progression: Data Ingestion → Conflict Resolution → Safety Evaluation → Route Optimization → Advisory Compilation → Trace Finalization.
+Reason: Decouples sequential decision-making steps, logs full state transition traces for auditability by judges, and cleanly exposes `POST /plan` and `GET /trace/{request_id}` endpoints.
+Affects: `backend/app/graph/`, `backend/app/api/plan.py`.
+
+## 2026-09-10 — Authority-Tiered Conflict Resolution
+Decision: Conflict resolution hierarchy strictly ordered: INCOIS/IMD Official Regulatory Advisories (Tier 1) > Physical Sensor / Buoy / StormGlass (Tier 2) > Open-Meteo Numerical Weather Predictions (Tier 3) > Crowd/Historical Observations (Tier 4).
+Reason: Prevents satellite forecast models from overriding high-severity official cyclone warnings, maintaining regulatory compliance and seafarer safety.
+Affects: `backend/app/services/conflict_resolver.py`, `backend/tests/test_conflict_resolver.py`.
+
+## 2026-09-10 — Active Voyage Store & In-Flight Deterioration Alerts
+Decision: In-memory Voyage Store tracks active fishing trips with GPS coordinates, assigned vessels, active routes, and target PFZs. When new evidence or alerts arrive via `on_evidence_change()`, the engine re-evaluates risk, detects condition deterioration, and calculates the nearest safe harbour with bearing and distance.
+Reason: Real fishermen need continuous monitoring while at sea, not just pre-trip planning. Emergency diversion recommendations save lives if storms intensify after departure.
+Affects: `backend/app/data/voyage_store.py`, `backend/app/services/alert_engine.py`, `backend/app/api/voyages.py`.
+
+## 2026-09-10 — Multi-Source Tiered Background Scrapers & Scheduler
+Decision: Implemented background scheduler (APScheduler) with source-tailored refresh intervals: GDACS cyclone XML (15 min), Open-Meteo forecasts (30 min), IMD weather warnings with SHA-256 fingerprinting (1 hr), StormGlass marine data with 0.1° cell caching (2 hr), and INCOIS PFZ maps (6 hr).
+Reason: Balances rapid notification of sudden extreme weather against external API rate limits, bandwidth constraints, and government portal scrape etiquette.
+Affects: `backend/app/data/live_client.py`, `backend/app/data/stormglass_client.py`, `backend/app/data/advisory_scraper.py`, `backend/app/data/scheduler.py`.
+
+## 2026-09-10 — Capability-Based Source Registry
+Decision: Register data sources with capabilities (`cyclone`, `pfz`, `wave_height`, `wind_speed`, `weather_warning`) and priorities.
+Reason: Allows runtime discovery of preferred and fallback providers for any marine metric without hardcoding provider logic in planner nodes.
+Affects: `backend/app/data/source_registry.py`, `backend/tests/test_source_registry.py`.
+
+## 2026-09-10 — Regional Language Extension & Script Detection
+Decision: Added regional language support (`ta`, `te`, `bn`, `ml`, `gu`, `kn`, `or`) using fast Unicode codepoint script detection and Sarvam Mayura machine translation for advisories, alongside a resilient `SupportedLanguage` TypeScript type in frontend.
+Reason: Enables immediate language detection without extra network calls, translates official English/Hindi advisories to the coastal fisherman's mother tongue, and preserves existing UI component dictionary typing in the frontend.
+Affects: `backend/app/services/i18n.py`, `backend/app/services/translate.py`, `frontend/src/types.ts`.
+
+## 2026-09-10 — Deterministic Safety Floor Test Suite
+Decision: 76 unit tests across 15 test modules covering schema validation, deterministic safety floors (wind > 35 knots, wave > 3.0m, cyclone within 100km triggering immediate NO-GO), conflict resolution, advisory compiling, route scoring, scheduler, voice, and translation.
+Reason: Ensures zero regression of legacy endpoints (`/api/chat`) and verifies mathematical safety invariants before any frontend UI integration.
+Affects: `backend/tests/`.
+
 <!-- Add new entries above this line, newest at the bottom of the log but
      above this comment, so the file reads chronologically top-to-bottom. -->
+
