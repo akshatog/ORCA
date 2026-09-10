@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-Language = Literal["en", "hi", "mr"]
+Language = Literal["en", "hi", "mr", "ta", "te", "bn", "ml", "gu", "kn", "or"]
 DataMode = Literal["LIVE", "DEMO", "CACHE"]
 RiskCategory = Literal["LOW", "MODERATE", "HIGH", "EXTREME"]
 

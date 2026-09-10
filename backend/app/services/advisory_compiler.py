@@ -141,6 +141,16 @@ def compile_advisory(
         except Exception as item_err:
             log.debug("Skipping malformed advisory item %s: %s", item, item_err)
 
+    return _localize_advisories(constraints)
+
+
+def _localize_advisories(constraints: List[AdvisoryConstraint]) -> List[AdvisoryConstraint]:
+    try:
+        from .translate import translate_advisory
+        for c in constraints:
+            translate_advisory(c)
+    except Exception as e:
+        log.debug("Advisory localization skipped: %s", e)
     return constraints
 
 
@@ -204,7 +214,7 @@ def _heuristic_fallback(
             region = f"{r} coast"
             break
 
-    return [
+    return _localize_advisories([
         AdvisoryConstraint(
             authority=authority,
             constraint_type=ctype,  # type: ignore
@@ -216,4 +226,4 @@ def _heuristic_fallback(
             source_reference=source_reference,
             confidence=0.85,
         )
-    ]
+    ])

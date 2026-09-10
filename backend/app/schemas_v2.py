@@ -66,6 +66,7 @@ class AdvisoryConstraint(BaseModel):
     source_text: str                           # original bulletin excerpt this was derived from
     source_reference: str                      # which archived bulletin it's adapted from
     confidence: float = Field(ge=0.0, le=1.0)  # LLM parse confidence
+    localized_summaries: Dict[str, str] = Field(default_factory=dict)  # translations e.g. {"ta": ..., "hi": ...}
 
 
 # --------------------------------------------------------------------------

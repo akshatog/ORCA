@@ -36,4 +36,6 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:14 | TASK-4.5 | done: implemented Tiered Scheduler in data/scheduler.py with 5 background cadence jobs (15m, 30m, 1h, 2h, 6h), startup warmup, and unit tests | open: TASK-4.6 through 8.13 | deviation: none
 2026-09-10 23:15 | TASK-4.6 | done: implemented capability-based Source Registry in data/source_registry.py with priorities, defaults, discovery functions, and unit tests | open: TASK-4.7 through 8.13 | deviation: none
 2026-09-10 23:16 | TASK-4.7 | done: implemented Sarvam AI Saaras STT and Bulbul TTS voice service in services/voice.py and endpoints in api/voice.py with browser fallbacks and unit tests | open: TASK-4.8 through 8.13 | deviation: none
+2026-09-10 23:18 | TASK-4.8 | done: extended Language types, added Unicode script detection for Indian languages (ta, te, bn, ml, gu, kn, or) and regional phrasebooks in services/i18n.py | open: TASK-4.9 through 8.13 | deviation: none
+2026-09-10 23:19 | TASK-4.9 | done: implemented advisory translation using Sarvam Mayura in services/translate.py, populating localized_summaries on AdvisoryConstraint, with unit tests | open: Phase 5 (TASK-5.1 through TASK-5.2) | deviation: none
 <!-- entries go here, oldest first -->
