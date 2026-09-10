@@ -30,4 +30,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:04 | TASK-3.3 | done: implemented alert engine with on_evidence_change, deterioration detection, safe-port recommendations, and unit tests | open: TASK-3.4 through 8.13 | deviation: none
 2026-09-10 23:06 | TASK-3.4 | done: implemented voyage tracking and alert trigger API endpoints in api/voyages.py mounted in main.py, verified with integration tests and full smoke test | open: Phase 4 (TASK-4.1 through TASK-4.9) | deviation: none
 2026-09-10 23:08 | TASK-4.1 | done: implemented parse_gdacs_xml and fetch_gdacs with 15min TTL in live_client.py, Indian Ocean filtering, alert engine integration, and unit tests | open: TASK-4.2 through 8.13 | deviation: none
+2026-09-10 23:09 | TASK-4.2 | done: implemented StormGlass adapter in data/stormglass_client.py with 0.1 deg spatial caching, 2hr TTL, quota guards, graceful fallbacks, and unit tests | open: TASK-4.3 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
