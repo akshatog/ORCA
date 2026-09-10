@@ -20,4 +20,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 22:38 | TASK-0.4 | done: logged all Phase 0 foundation decisions in DECISIONS.md | open: Phase 1 (TASK-1.1 through TASK-1.2) | deviation: none
 2026-09-10 22:44 | TASK-1.1 | done: implemented multi-provider LLM fallback chain (Groq -> Cerebras -> Gemini -> Template) in services/llm.py with passing tests | open: TASK-1.2 through 8.13 | deviation: none
 2026-09-10 22:45 | TASK-1.2 | done: implemented Advisory Compiler in services/advisory_compiler.py with confidence threshold and heuristic fallback | open: Phase 2 (TASK-2.1 through TASK-2.5) | deviation: none
+2026-09-10 22:50 | TASK-2.1 | done: implemented LangGraph StateGraph pipeline in graph/ package with ASCII topology and mock run returning valid ORCAState | open: TASK-2.2 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
