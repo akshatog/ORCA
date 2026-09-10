@@ -231,39 +231,12 @@ def evidence_store_node(state) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 def conflict_resolver_node(state) -> Dict[str, Any]:
     start = time.perf_counter()
-    conflict_log: List[dict] = []
-
-    by_metric: Dict[str, List[Evidence]] = {}
-    for ev in state.evidence:
-        by_metric.setdefault(ev.metric, []).append(ev)
-
-    for metric, items in by_metric.items():
-        if len(items) <= 1:
-            continue
-
-        def sort_key(e: Evidence):
-            return (
-                AUTHORITY_RANKS.get(e.authority_level, 1),
-                e.confidence,
-                e.observed_at.timestamp(),
-            )
-
-        items_sorted = sorted(items, key=sort_key, reverse=True)
-        winner = items_sorted[0]
-        losers = items_sorted[1:]
-
-        conflict_log.append({
-            "metric": metric,
-            "winner_source": winner.source,
-            "winner_value": winner.value,
-            "overridden_sources": [l.source for l in losers],
-            "reason": f"Authority priority: {winner.authority_level} > {losers[0].authority_level}",
-        })
-
+    from ..services.conflict_resolver import resolve_conflicts
+    reconciled_evidences, new_conflicts = resolve_conflicts(state.evidence)
     latency = int((time.perf_counter() - start) * 1000)
     return {
-        "conflict_log": conflict_log,
-        "trace": [_trace_entry("conflict_resolver", "ok", latency, f"Resolved conflicts across {len(by_metric)} metrics")],
+        "conflict_log": new_conflicts,
+        "trace": [_trace_entry("conflict_resolver", "ok", latency, f"Resolved {len(new_conflicts)} metric conflict(s)")],
     }
 
 
