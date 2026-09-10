@@ -42,10 +42,12 @@ Evidence_v2 = Evidence
 
 
 def make_evidence(**kwargs) -> Evidence:
-    """Factory — fills retrieved_at automatically with UTC now if omitted."""
+    """Factory — fills retrieved_at, observed_at, authority_level, and mode automatically if omitted."""
     kwargs.setdefault("retrieved_at", datetime.now(timezone.utc))
     if "observed_at" not in kwargs:
         kwargs["observed_at"] = kwargs["retrieved_at"]
+    kwargs.setdefault("authority_level", "external_forecast")
+    kwargs.setdefault("mode", "DEMO")
     return Evidence(**kwargs)
 
 
