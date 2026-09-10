@@ -1,0 +1,17 @@
+# ORCA — Progress Log
+
+Append one line per completed (or meaningfully blocked) task. Whoever
+finished the task writes it — or tells their coding agent to write it as
+the last step.
+
+Format:
+```
+YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | deviation: <if code differs from spec, why>
+```
+
+---
+
+2026-09-10 20:30 | SETUP | done: copied old ORCA codebase into ORCA 2.0 repo (backend, frontend, images, root files, all .md files) | open: none | deviation: copied from D:\Desktop\ORCA, not built fresh
+2026-09-10 21:00 | DOCS | done: updated all docs (00_overview, 02_schemas, 05_api_contracts, 06_team_and_assignments, 07_stack_and_models, 08_implementation_phases, DECISIONS.md, AGENT.md) to reflect migration approach, solo builder mode, dual schema strategy, Gemini Flash | open: none | deviation: docs now reflect upgrade-not-rebuild reality
+
+<!-- entries go here, oldest first -->

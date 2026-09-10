@@ -1,4 +1,4 @@
-"""ORCA configuration — data mode, risk weights, thresholds.
+"""ORCA configuration â€” data mode, risk weights, thresholds.
 
 Everything a judge might question ("why these weights?", "is this data real?")
 is centralised here so it can be shown on screen and defended in Q&A.
@@ -6,8 +6,35 @@ is centralised here so it can be shown on screen and defended in Q&A.
 from __future__ import annotations
 
 import os
+import pathlib
 from dataclasses import dataclass, field
 from typing import Dict
+
+
+# --------------------------------------------------------------------------
+# Load backend/.env if present (stdlib only, no python-dotenv needed).
+# Variables already set in the shell environment take priority.
+# --------------------------------------------------------------------------
+def _load_dotenv() -> None:
+    env_path = pathlib.Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return
+    with env_path.open(encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                value = value[1:-1]
+            if key and key not in os.environ:  # shell env wins
+                os.environ[key] = value
+
+
+_load_dotenv()
+
 
 
 # --------------------------------------------------------------------------
@@ -20,7 +47,7 @@ from typing import Dict
 DATA_MODE = os.getenv("ORCA_DATA_MODE", "DEMO").upper()
 
 # Runtime-switchable copy so the mode can be flipped from the UI mid-demo
-# ("watch — I'll switch it to live government-adjacent data now") without a
+# ("watch â€” I'll switch it to live government-adjacent data now") without a
 # restart. Always read through get_data_mode(); never trust the constant above.
 _RUNTIME = {"data_mode": DATA_MODE}
 
@@ -40,11 +67,12 @@ def set_data_mode(mode: str) -> str:
 LIVE_TIMEOUT_SECONDS = float(os.getenv("ORCA_LIVE_TIMEOUT", "4.0"))
 
 # Optional LLM layer. ORCA runs fully without it (rule-based intent + template
-# explanations). When a key is present the LLM only *rephrases* — it never
+# explanations). When a key is present the LLM only *rephrases* â€” it never
 # computes a risk score. See services/llm.py.
-LLM_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "claude-sonnet-5")
-LLM_ENABLED = bool(LLM_API_KEY) and os.getenv("ORCA_USE_LLM", "1") != "0"
+LLM_API_KEY = os.getenv("GROQ_API_KEY", "")
+LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "openai/gpt-oss-120b")
+LLM_ENABLED  = bool(LLM_API_KEY) and os.getenv("ORCA_USE_LLM", "1") != "0"
+LLM_TIMEOUT  = float(os.getenv("ORCA_LLM_TIMEOUT", "8.0"))  # per-call wall-clock limit
 
 
 # --------------------------------------------------------------------------
@@ -122,10 +150,11 @@ SOURCE_LABELS = {
     "IMD": "IMD (India Meteorological Department)",
     "MOSDAC": "ISRO MOSDAC",
     "OPEN_METEO": "Open-Meteo Marine (open fallback source)",
-    "DEMO": "ORCA demo dataset — SIMULATED, not official data",
+    "DEMO": "ORCA demo dataset - SIMULATED, not official data",
     "ORCA_GIS": "ORCA geospatial layer (OpenStreetMap derived)",
 }
 
 # Text appended to every synthetic value so simulated data can never be
 # mistaken for a live government feed.
-DEMO_DISCLAIMER = "Demo / simulated data — not a live government feed"
+DEMO_DISCLAIMER = "Demo / simulated data - not a live government feed"
+

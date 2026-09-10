@@ -40,6 +40,70 @@ export function ask(params: {
   });
 }
 
+export interface AgentEvent {
+  type: "thinking" | "agent_done";
+  step?: string;
+  agent: string;
+  label?: string;
+  summary?: string;
+  status?: string;
+}
+
+/** SSE streaming ask — yields agent events then the final ChatResponse. */
+export async function askStream(
+  params: {
+    message: string;
+    language?: Language;
+    latitude?: number;
+    longitude?: number;
+    locationName?: string;
+    sessionId?: string;
+  },
+  onEvent: (e: AgentEvent) => void,
+  onDone: (res: ChatResponse) => void,
+  onError: (err: string) => void,
+): Promise<void> {
+  try {
+    const res = await fetch(`${BASE}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: params.message,
+        language: params.language ?? null,
+        latitude: params.latitude ?? null,
+        longitude: params.longitude ?? null,
+        location_name: params.locationName ?? null,
+        session_id: params.sessionId ?? "demo",
+      }),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+      for (const chunk of parts) {
+        if (!chunk.trim()) continue;
+        const eventLine = chunk.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+        const dataLine = chunk.match(/^data:\s*(.+)$/m)?.[1]?.trim();
+        if (!eventLine || !dataLine) continue;
+        const parsed = JSON.parse(dataLine);
+        if (eventLine === "done") {
+          onDone(parsed as ChatResponse);
+        } else {
+          onEvent({ type: eventLine as AgentEvent["type"], ...parsed });
+        }
+      }
+    }
+  } catch (e) {
+    onError(String(e));
+  }
+}
+
 export function resetSession(sessionId = "demo") {
   return json(`${BASE}/chat/reset?session_id=${encodeURIComponent(sessionId)}`, {
     method: "POST",

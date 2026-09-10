@@ -1,38 +1,49 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
+import type { AgentEvent } from "../api";
 import type { ChatMessage, Language } from "../types";
 import { BoatGlyph, CompassMark, CourseArrow, MicGlyph, SchoolGlyph, StopGlyph } from "./glyphs";
 
 const PLACEHOLDER: Record<Language, string> = {
   en: "Ask ORCA — can I go fishing tomorrow at 6 AM?",
-  hi: "ORCA से पूछें — क्या मैं कल सुबह 6 बजे जा सकता हूँ?",
-  mr: "ORCA ला विचारा — मी उद्या सकाळी ६ वाजता जाऊ शकतो का?",
+  hi: "ORCA se puchhen — kya main kal subah 6 baje ja sakta hun?",
+  mr: "ORCA la vichara — mi udya sakali 6 vajata jau shakto ka?",
 };
 
 const T: Record<Language, Record<string, string>> = {
   en: {
     title: "Ask ORCA",
-    sub: "Type or speak — English · हिंदी · मराठी",
+    sub: "Type or speak — English · Hindi · Marathi",
     you: "You",
     emptyMain: "Ask about safety, fishing zones, routes or warnings.",
-    emptySub: "ORCA keeps context — follow-ups like “what about 12 PM?” work.",
-    busy: "agents working…",
+    emptySub: "ORCA keeps context — follow-ups like what about 12 PM? work.",
   },
   hi: {
-    title: "ORCA से पूछें",
-    sub: "लिखें या बोलें — English · हिंदी · मराठी",
-    you: "आप",
-    emptyMain: "सुरक्षा, मत्स्य क्षेत्र, मार्ग या चेतावनियों के बारे में पूछिए।",
-    emptySub: "ORCA संदर्भ याद रखता है — “दोपहर 12 बजे क्या?” जैसे सवाल चलते हैं।",
-    busy: "एजेंट काम कर रहे हैं…",
+    title: "ORCA se puchhen",
+    sub: "Likhen ya bolen — English · Hindi · Marathi",
+    you: "Aap",
+    emptyMain: "Suraksha, matsya kshetra, marg ya chetavaniyon ke bare mein puchiye.",
+    emptySub: "ORCA sandarbh yaad rakhta hai.",
   },
   mr: {
-    title: "ORCA ला विचारा",
-    sub: "लिहा किंवा बोला — English · हिंदी · मराठी",
-    you: "तुम्ही",
-    emptyMain: "सुरक्षा, मासेमारी क्षेत्रे, मार्ग किंवा इशाऱ्यांबद्दल विचारा.",
-    emptySub: "ORCA संदर्भ लक्षात ठेवते — “दुपारी १२ वाजता काय?” असे प्रश्न चालतात.",
-    busy: "एजंट काम करत आहेत…",
+    title: "ORCA la vichara",
+    sub: "Liha kiva bola — English · Hindi · Marathi",
+    you: "Tumhi",
+    emptyMain: "Suraksha, maseemari kshetra, marg kiva isharyanbadd vichara.",
+    emptySub: "ORCA sandarbh lakshat thevate.",
   },
+};
+
+const AGENT_ICON: Record<string, string> = {
+  intent: "Brain",
+  weather: "Cloud",
+  ocean: "Wave",
+  pfz: "Fish",
+  cyclone: "Cyclone",
+  gis: "Map",
+  risk: "Scale",
+  route: "Compass",
+  explanation: "Write",
+  specialists: "Lightning",
 };
 
 const SPEECH_LOCALE: Record<Language, string> = {
@@ -41,16 +52,70 @@ const SPEECH_LOCALE: Record<Language, string> = {
   mr: "mr-IN",
 };
 
-// Web Speech API — no key, no server, works in Edge/Chrome.
 function getRecognition(): any | null {
   const w = window as any;
   const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
   return Ctor ? new Ctor() : null;
 }
 
+function ThinkingPanel({ events }: { events: AgentEvent[] }) {
+  const thinking = events.find((e) => e.type === "thinking");
+  const done = events.filter((e) => e.type === "agent_done");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
+  }, [done.length]);
+
+  return (
+    <div
+      className="rounded-[3px] rounded-bl-none border text-left"
+      style={{ borderColor: "var(--rule)", background: "var(--paper-bright)", minWidth: 220 }}
+    >
+      <div className="flex items-center gap-2 border-b px-3.5 py-2" style={{ borderColor: "var(--rule-faint)" }}>
+        <span className="relative flex h-3 w-3 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-chart-400 opacity-60" />
+          <span className="relative inline-flex h-3 w-3 rounded-full bg-chart-600" />
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-500">
+          {thinking?.step ?? "Processing..."}
+        </span>
+      </div>
+      {done.length > 0 && (
+        <div ref={ref} className="max-h-[130px] overflow-y-auto px-3.5 py-2 space-y-1.5">
+          {done.map((e) => (
+            <div key={e.agent} className="flex items-start gap-2 animate-rise">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-[10px] font-bold text-ink-700 truncate">
+                    {e.label}
+                  </span>
+                  <span
+                    className="shrink-0 font-mono text-[8px] uppercase tracking-widest px-1 rounded"
+                    style={{
+                      background: e.status === "ok" ? "#d1fadf" : "#fee2e2",
+                      color: e.status === "ok" ? "#166534" : "#991b1b",
+                    }}
+                  >
+                    {e.status === "ok" ? "done" : "err"}
+                  </span>
+                </div>
+                {e.summary && (
+                  <div className="text-[10px] text-ink-400 truncate">{e.summary}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChatPanel({
   messages,
   busy,
+  agentEvents,
   language,
   suggestions,
   onSend,
@@ -58,6 +123,7 @@ export default function ChatPanel({
 }: {
   messages: ChatMessage[];
   busy: boolean;
+  agentEvents: AgentEvent[];
   language: Language;
   suggestions: string[];
   onSend: (text: string) => void;
@@ -75,7 +141,7 @@ export default function ChatPanel({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, busy]);
+  }, [messages, busy, agentEvents.length]);
 
   const submit = (value: string) => {
     const v = value.trim();
@@ -110,7 +176,6 @@ export default function ChatPanel({
 
   return (
     <div className="panel rule-double flex h-full min-h-0 flex-col">
-      {/* header */}
       <div className="hd !py-3">
         <div>
           <div className="font-display text-[16px] font-bold text-ink-900">
@@ -130,13 +195,12 @@ export default function ChatPanel({
               }`}
               style={language === l ? undefined : { borderColor: "var(--rule)" }}
             >
-              {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
+              {l === "en" ? "EN" : l === "hi" ? "HI" : "MR"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* messages */}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
           <div
@@ -191,27 +255,17 @@ export default function ChatPanel({
 
         {busy && (
           <div className="flex justify-start">
-            <div
-              className="flex items-center gap-2 rounded-[3px] rounded-bl-none border px-3.5 py-2.5"
-              style={{ borderColor: "var(--rule)", background: "var(--paper-bright)" }}
-            >
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-700"
-                  style={{ animationDelay: `${i * 120}ms` }}
-                />
-              ))}
-              <span className="ml-1 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-400">
-                {(T[language] ?? T.en).busy}
-              </span>
+            <div className="max-w-[92%] animate-rise">
+              <div className="label mb-1 flex items-center gap-1 !text-[8.5px] !tracking-[0.2em] !text-ink-300">
+                <CompassMark size={10} className="shrink-0 text-chart-500" /> ORCA
+              </div>
+              <ThinkingPanel events={agentEvents} />
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* suggestions */}
       {suggestions.length > 0 && (
         <div
           className="flex flex-wrap gap-1.5 border-t px-4 py-2.5"
@@ -225,7 +279,6 @@ export default function ChatPanel({
         </div>
       )}
 
-      {/* input */}
       <div
         className="flex items-center gap-2 border-t p-3"
         style={{ borderColor: "var(--rule-faint)" }}

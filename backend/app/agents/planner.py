@@ -183,6 +183,7 @@ def handle(req: ChatRequest) -> ChatResponse:
         suggestions=expl_res.data.get("suggestions", []),
         mode=mode,  # type: ignore[arg-type]
         disclaimer=expl_res.data.get("disclaimer", ""),
+        explanation_source=expl_res.data.get("explanation_source", "template"),  # type: ignore[arg-type]
         elapsed_ms=int((time.perf_counter() - started) * 1000),
     )
 

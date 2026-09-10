@@ -137,6 +137,7 @@ export interface ChatResponse {
   suggestions: string[];
   mode: DataMode;
   disclaimer: string;
+  explanation_source: "llm" | "template";
   elapsed_ms: number;
 }
 

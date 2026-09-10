@@ -1,4 +1,4 @@
-"""Typed contracts shared by every ORCA agent.
+﻿"""Typed contracts shared by every ORCA agent.
 
 Rule: agents never return prose. They return these structures, each carrying
 provenance (value + unit + source + timestamp + confidence). The Explanation
@@ -163,7 +163,7 @@ class ChatRequest(BaseModel):
 
 
 class AgentTrace(BaseModel):
-    """What ran, in what order, how long it took — drives the demo animation."""
+    """What ran, in what order, how long it took â€” drives the demo animation."""
 
     agent: str
     status: Literal["ok", "skipped", "failed", "degraded"]
@@ -188,4 +188,6 @@ class ChatResponse(BaseModel):
     suggestions: List[str] = Field(default_factory=list)
     mode: DataMode = "DEMO"
     disclaimer: str = ""
+    explanation_source: Literal["llm", "template"] = "template"
     elapsed_ms: int = 0
+

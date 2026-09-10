@@ -16,6 +16,11 @@ from ..schemas import (AgentResult, Evidence, Language, Location, PFZZone,
 from ..services.i18n import SUGGESTIONS, humanise_duration, t, verdict_key
 from .base import timed
 
+# LLM rephrase path ? imported lazily so the module loads without groq.
+import logging as _logging
+import time as _time
+_log = _logging.getLogger(__name__)
+
 # Localised names for the risk factors (rendering concern, kept next to the renderer)
 FACTOR_LABELS: Dict[str, Dict[str, str]] = {
     "wave":    {"en": "Wave height",        "hi": "लहरों की ऊँचाई", "mr": "लाटांची उंची"},
@@ -171,16 +176,84 @@ def run(*, intent, risk: Optional[RiskAssessment], pfz: List[PFZZone],
     if mode == "DEMO":
         parts.append(t("demo_mode", lang))
 
-    answer = " ".join(parts)
+    # ?? Template answer (always built; never removed) ????????????????????
+    template_answer = " ".join(parts)
+    final_answer = template_answer
+    explanation_source = "template"
+
+    # ?? LLM rephrase path (optional, falls back silently) ?????????????????
+    from ..config import LLM_ENABLED  # local import avoids circular dep
+    if LLM_ENABLED:
+        from ..services.llm import LLMUnavailable, rephrase_explanation
+        # Build the facts dict from already-computed values only.
+        # Never include raw user input here.
+        facts: Dict[str, object] = {}
+        # Always include what the user actually asked — the LLM uses this
+        # to address their specific question rather than reciting every fact.
+        facts["user_query"] = intent.raw_query
+        facts["intent_type"] = intent.intent
+        facts["location"] = intent.location_text or "unknown"
+        if risk is not None:
+            facts["risk_score"] = risk.score
+            facts["risk_category"] = risk.category
+            facts["go"] = risk.go
+            facts["official_warning"] = risk.official_warning
+            facts["overrides"] = risk.overrides
+            if risk.window:
+                facts["improves_after"] = risk.window
+        facts["wave_height_m"] = ocean.get("wave_height_m")
+        facts["wind_speed_kmh"] = weather.get("wind_speed_kmh")
+        facts["rain_probability_pct"] = weather.get("rain_probability_pct")
+        facts["visibility_km"] = weather.get("visibility_km")
+        facts["sea_state"] = ocean.get("sea_state")
+        facts["distance_from_shore_km"] = gis.get("distance_from_shore_km")
+        facts["inside_restricted_zone"] = gis.get("inside_restricted_zone", False)
+        if cyclone.get("headline"):
+            facts["marine_warning_headline"] = cyclone["headline"]
+        if pfz:
+            top = pfz[0]
+            facts["top_pfz_rank"] = top.rank
+            facts["top_pfz_distance_km"] = top.distance_km
+            facts["top_pfz_bearing"] = top.bearing
+            facts["top_pfz_sst_c"] = top.sst_c
+            facts["top_pfz_chlorophyll"] = top.chlorophyll_mg_m3
+        if routes:
+            rec = next((r for r in routes if r.recommended), routes[0])
+            facts["recommended_route_km"] = rec.distance_km
+            facts["recommended_route_eta_min"] = rec.eta_minutes
+        # Sources line ? LLM must append it verbatim.
+        srcs_line = f"{t('sources', lang)}: {chr(44).join(sorted({SOURCE_LABELS.get(a.source, a.source) for a in agents.values() if a.ok and a.source not in ('ORCA',)}))}" \
+                    f" · {t('updated', lang)} {when.strftime('%d %b %Y, %H:%M IST')}"
+        facts["sources_line"] = srcs_line
+        facts["language"] = lang
+        facts["mode"] = mode
+
+        _llm_start = _time.perf_counter()
+        try:
+            final_answer = rephrase_explanation(facts, lang)
+            explanation_source = "llm"
+            _log.debug(
+                "LLM rephrase OK lang=%s latency=%.0fms",
+                lang, (_time.perf_counter() - _llm_start) * 1000,
+            )
+        except LLMUnavailable as exc:
+            _log.debug("LLM rephrase unavailable, using template: %s", exc)
+            final_answer = template_answer
+            explanation_source = "template"
+        except Exception as exc:  # noqa: BLE001
+            _log.debug("LLM rephrase unexpected error, using template: %s", exc)
+            final_answer = template_answer
+            explanation_source = "template"
 
     return AgentResult(
         agent="explanation",
         ok=True,
         data={
-            "answer": answer,
+            "answer": final_answer,
             "evidence": [e.model_dump() for e in build_evidence(weather, ocean, cyclone, gis, agents)],
             "suggestions": SUGGESTIONS.get(lang, SUGGESTIONS["en"]),
             "disclaimer": t("disclaimer", lang),
+            "explanation_source": explanation_source,
         },
         source="ORCA",
         timestamp=when.isoformat(timespec="seconds"),
