@@ -33,4 +33,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:09 | TASK-4.2 | done: implemented StormGlass adapter in data/stormglass_client.py with 0.1 deg spatial caching, 2hr TTL, quota guards, graceful fallbacks, and unit tests | open: TASK-4.3 through 8.13 | deviation: none
 2026-09-10 23:10 | TASK-4.3 | done: implemented IMD Advisory Scraper in data/advisory_scraper.py with BeautifulSoup HTML extraction, pdfplumber PDF extraction, SHA-256 fingerprint caching, and alert engine integration | open: TASK-4.4 through 8.13 | deviation: none
 2026-09-10 23:11 | TASK-4.4 | done: implemented INCOIS PFZ Scraper in data/advisory_scraper.py with coordinate/SST/chlorophyll extraction, 6hr TTL, and unit tests | open: TASK-4.5 through 8.13 | deviation: none
+2026-09-10 23:14 | TASK-4.5 | done: implemented Tiered Scheduler in data/scheduler.py with 5 background cadence jobs (15m, 30m, 1h, 2h, 6h), startup warmup, and unit tests | open: TASK-4.6 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
