@@ -28,4 +28,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:00 | TASK-3.1 | done: implemented Conflict Resolver in services/conflict_resolver.py with authority hierarchy and conflict logging | open: TASK-3.2 through 8.13 | deviation: none
 2026-09-10 23:02 | TASK-3.2 | done: implemented in-memory voyage store in app/data/voyage_store.py with start/get/update/end lifecycle and unit tests | open: TASK-3.3 through 8.13 | deviation: none
 2026-09-10 23:04 | TASK-3.3 | done: implemented alert engine with on_evidence_change, deterioration detection, safe-port recommendations, and unit tests | open: TASK-3.4 through 8.13 | deviation: none
+2026-09-10 23:06 | TASK-3.4 | done: implemented voyage tracking and alert trigger API endpoints in api/voyages.py mounted in main.py, verified with integration tests and full smoke test | open: Phase 4 (TASK-4.1 through TASK-4.9) | deviation: none
 <!-- entries go here, oldest first -->

@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .api import alerts, chat, chat_stream, field, fishing, forecast, map as map_api, plan, routes
+from .api import alerts, chat, chat_stream, field, fishing, forecast, map as map_api, plan, routes, voyages
 from .config import get_data_mode
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(plan.router)
+app.include_router(voyages.router)
 app.include_router(chat.router)
 app.include_router(chat_stream.router)
 app.include_router(fishing.router)
