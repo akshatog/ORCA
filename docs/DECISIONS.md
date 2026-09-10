@@ -108,5 +108,20 @@ Decision: After A* returns route candidates, score each route by sampling condit
 Reason: The existing A* only avoids static restricted zones. It doesn't know that Route A passes through a storm band at 20-30km. Path-integrated risk makes the recommendation actually reflect what the fisherman will experience. The max_spike term prevents a route averaging as "moderate safe" when it has one very dangerous segment.
 Affects: `services/route_optimizer.py`, `schemas.py` (WaypointCondition type, RouteOption fields), route agent/node, `config/risk_thresholds.yaml` (waypoint weights).
 
+## 2026-09-10 — YAML Configuration & Fallbacks
+Decision: Risk model weights, thresholds, deterministic safety floors, route waypoint scoring weights, and trip economics extracted from Python code into `backend/config/risk_thresholds.yaml` and `backend/config/trip_economics.yaml`. Loaded at startup in `backend/app/config.py` with automatic fallback to hardcoded defaults if files are missing or malformed.
+Reason: Centralizes all judge-inspectable risk factors and economics parameters in human-readable YAML outside business logic, enabling hot adjustments and transparent auditability without editing code.
+Affects: `backend/config/risk_thresholds.yaml`, `backend/config/trip_economics.yaml`, `backend/app/config.py`.
+
+## 2026-09-10 — ORCA 2.0 Schemas and Dual-Schema Interop
+Decision: Built `backend/app/schemas_v2.py` implementing `Evidence`, `AdvisoryConstraint`, `DecisionState`, `AlertEvent`, and `ORCAState` with strict boundary validation (confidence 0.0–1.0, risk_score 0–100) and converters (`measurement_to_evidence`, `agent_result_to_evidence_list`, `risk_assessment_to_decision_state`). Kept `schemas.py` 100% untouched.
+Reason: Preserves complete backward compatibility for existing 10 agents, `/api/chat`, and 17 frontend components while giving the new LangGraph engine and `/plan` endpoint clean, typed contracts.
+Affects: `backend/app/schemas_v2.py`, `backend/tests/test_schemas_v2.py`.
+
+## 2026-09-10 — Centralized Mock Data & Edge Cases
+Decision: Centralized all test fixtures and 8 explicit edge cases in `backend/app/data/mock_data/` (`fixtures.py`, `edge_cases.py`, `__init__.py`) returning typed `Evidence_v2` and `AdvisoryConstraint` objects.
+Reason: Guarantees that the pipeline, safety floors, conflict resolver, and fallbacks can be exhaustively exercised and validated without calling external networks or relying on scattered mocks in agents.
+Affects: `backend/app/data/mock_data/`, `backend/tests/test_mock_data.py`.
+
 <!-- Add new entries above this line, newest at the bottom of the log but
      above this comment, so the file reads chronologically top-to-bottom. -->
