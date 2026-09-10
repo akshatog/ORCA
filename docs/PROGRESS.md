@@ -35,4 +35,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 23:11 | TASK-4.4 | done: implemented INCOIS PFZ Scraper in data/advisory_scraper.py with coordinate/SST/chlorophyll extraction, 6hr TTL, and unit tests | open: TASK-4.5 through 8.13 | deviation: none
 2026-09-10 23:14 | TASK-4.5 | done: implemented Tiered Scheduler in data/scheduler.py with 5 background cadence jobs (15m, 30m, 1h, 2h, 6h), startup warmup, and unit tests | open: TASK-4.6 through 8.13 | deviation: none
 2026-09-10 23:15 | TASK-4.6 | done: implemented capability-based Source Registry in data/source_registry.py with priorities, defaults, discovery functions, and unit tests | open: TASK-4.7 through 8.13 | deviation: none
+2026-09-10 23:16 | TASK-4.7 | done: implemented Sarvam AI Saaras STT and Bulbul TTS voice service in services/voice.py and endpoints in api/voice.py with browser fallbacks and unit tests | open: TASK-4.8 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
