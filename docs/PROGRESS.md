@@ -18,4 +18,5 @@ YYYY-MM-DD HH:MM | TASK-ID | done: <what> | open: <what's left, if anything> | d
 2026-09-10 22:36 | TASK-0.2 | done: implemented schemas_v2.py (Evidence, AdvisoryConstraint, DecisionState, AlertEvent, ORCAState, make_evidence, converters) with 16 passing unit tests | open: TASK-0.3 through 8.13 | deviation: none
 2026-09-10 22:37 | TASK-0.3 | done: implemented centralized mock_data fixtures and edge_cases with 8 Evidence_v2 edge cases | open: TASK-0.4 through 8.13 | deviation: none
 2026-09-10 22:38 | TASK-0.4 | done: logged all Phase 0 foundation decisions in DECISIONS.md | open: Phase 1 (TASK-1.1 through TASK-1.2) | deviation: none
+2026-09-10 22:44 | TASK-1.1 | done: implemented multi-provider LLM fallback chain (Groq -> Cerebras -> Gemini -> Template) in services/llm.py with passing tests | open: TASK-1.2 through 8.13 | deviation: none
 <!-- entries go here, oldest first -->
