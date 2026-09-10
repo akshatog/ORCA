@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import pathlib
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, Any
 
 
 # --------------------------------------------------------------------------
@@ -76,6 +76,49 @@ LLM_TIMEOUT  = float(os.getenv("ORCA_LLM_TIMEOUT", "8.0"))  # per-call wall-cloc
 
 
 # --------------------------------------------------------------------------
+# YAML config loading (backend/config/*.yaml) with hardcoded fallbacks
+# --------------------------------------------------------------------------
+def _load_yaml_dict(filename: str) -> dict:
+    candidates = [
+        pathlib.Path(__file__).parent.parent / "config" / filename,
+        pathlib.Path(__file__).parent.parent.parent / "config" / filename,
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                import yaml
+                with path.open(encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh)
+                    if isinstance(data, dict):
+                        return data
+            except Exception:
+                pass
+    return {}
+
+
+@dataclass(frozen=True)
+class RouteScoringConfig:
+    avg_weight: float = 0.70
+    spike_weight: float = 0.30
+    wave_weight: float = 0.60
+    wind_weight: float = 0.40
+    samples_per_route: int = 5
+    min_sample_spacing_km: float = 8.0
+
+
+@dataclass(frozen=True)
+class TripEconomicsConfig:
+    fuel_rate_l_per_km: float = 1.2
+    fuel_price_per_l: float = 95.0
+    fixed_provisions_estimate: float = 500.0
+    avg_market_price_per_kg: float = 180.0
+    catch_potential_kg: Dict[str, float] = field(
+        default_factory=lambda: {"HIGH": 150.0, "MEDIUM": 80.0, "LOW": 30.0, "NONE": 10.0}
+    )
+    boat_capacity_kg: float = 300.0
+
+
+# --------------------------------------------------------------------------
 # Risk engine
 # --------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -101,18 +144,11 @@ class RiskConfig:
     )
 
     # Category thresholds (upper bound of each band, 0-100).
-    #
-    # NOTE: we reserve EXTREME (80+) for conditions where an official severe
-    # warning is active or the sea state is life-threatening, so that "EXTREME"
-    # always means "do not launch, no judgement call". HIGH therefore extends
-    # to 79.
     thresholds: Dict[str, int] = field(
         default_factory=lambda: {"LOW": 25, "MODERATE": 50, "HIGH": 79, "EXTREME": 100}
     )
 
     # --- deterministic safety floors -------------------------------------
-    # Applied AFTER the weighted score. A floor can only raise a score, never
-    # lower it, so official warnings always dominate the model output.
     severe_warning_floor: int = 92     # cyclone / tsunami / severe marine warning
     fishermen_warning_floor: int = 70  # "fishermen advised not to venture"
     wave_danger_m: float = 4.0
@@ -120,19 +156,87 @@ class RiskConfig:
     wind_danger_kmh: float = 62.0      # ~34 kt, gale force
     wind_danger_floor: int = 85
     restricted_zone_floor: int = 60
+    condition_floors: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "CAUTION_FLOOR": {"wave_height_m": 1.2, "wind_speed_kmph": 37},
+            "NO_GO_FLOOR": {"wave_height_m": 3.0, "wind_speed_kmph": 63, "official_advisory": True},
+            "CYCLONE_FLOOR": {"gdacs_alert_level": ["orange", "red"]},
+        }
+    )
+    route_scoring: RouteScoringConfig = field(default_factory=RouteScoringConfig)
 
     def categorise(self, score: float) -> str:
         s = round(score)
-        if s <= self.thresholds["LOW"]:
+        if s <= self.thresholds.get("LOW", 25):
             return "LOW"
-        if s <= self.thresholds["MODERATE"]:
+        if s <= self.thresholds.get("MODERATE", 50):
             return "MODERATE"
-        if s <= self.thresholds["HIGH"]:
+        if s <= self.thresholds.get("HIGH", 79):
             return "HIGH"
         return "EXTREME"
 
 
-RISK = RiskConfig()
+def _init_risk_config() -> RiskConfig:
+    data = _load_yaml_dict("risk_thresholds.yaml")
+    defaults = {
+        "wave": 0.25,
+        "cyclone": 0.25,
+        "wind": 0.20,
+        "weather": 0.10,
+        "ocean": 0.10,
+        "gis": 0.10,
+    }
+    weights = data.get("weights") if isinstance(data.get("weights"), dict) else defaults
+    thresholds = data.get("thresholds") if isinstance(data.get("thresholds"), dict) else {
+        "LOW": 25, "MODERATE": 50, "HIGH": 79, "EXTREME": 100
+    }
+    floors = data.get("floors") if isinstance(data.get("floors"), dict) else {}
+    condition_floors = data.get("condition_floors") if isinstance(data.get("condition_floors"), dict) else {
+        "CAUTION_FLOOR": {"wave_height_m": 1.2, "wind_speed_kmph": 37},
+        "NO_GO_FLOOR": {"wave_height_m": 3.0, "wind_speed_kmph": 63, "official_advisory": True},
+        "CYCLONE_FLOOR": {"gdacs_alert_level": ["orange", "red"]},
+    }
+    rs_data = data.get("route_scoring") if isinstance(data.get("route_scoring"), dict) else {}
+    route_scoring = RouteScoringConfig(
+        avg_weight=float(rs_data.get("avg_weight", 0.70)),
+        spike_weight=float(rs_data.get("spike_weight", 0.30)),
+        wave_weight=float(rs_data.get("wave_weight", 0.60)),
+        wind_weight=float(rs_data.get("wind_weight", 0.40)),
+        samples_per_route=int(rs_data.get("samples_per_route", 5)),
+        min_sample_spacing_km=float(rs_data.get("min_sample_spacing_km", 8.0)),
+    )
+    return RiskConfig(
+        weights=weights,
+        thresholds=thresholds,
+        severe_warning_floor=int(floors.get("severe_warning_floor", 92)),
+        fishermen_warning_floor=int(floors.get("fishermen_warning_floor", 70)),
+        wave_danger_m=float(floors.get("wave_danger_m", 4.0)),
+        wave_danger_floor=int(floors.get("wave_danger_floor", 85)),
+        wind_danger_kmh=float(floors.get("wind_danger_kmh", 62.0)),
+        wind_danger_floor=int(floors.get("wind_danger_floor", 85)),
+        restricted_zone_floor=int(floors.get("restricted_zone_floor", 60)),
+        condition_floors=condition_floors,
+        route_scoring=route_scoring,
+    )
+
+
+def _init_trip_economics() -> TripEconomicsConfig:
+    data = _load_yaml_dict("trip_economics.yaml")
+    return TripEconomicsConfig(
+        fuel_rate_l_per_km=float(data.get("fuel_rate_l_per_km", 1.2)),
+        fuel_price_per_l=float(data.get("fuel_price_per_l", 95.0)),
+        fixed_provisions_estimate=float(data.get("fixed_provisions_estimate", 500.0)),
+        avg_market_price_per_kg=float(data.get("avg_market_price_per_kg", 180.0)),
+        catch_potential_kg=data.get("catch_potential_kg", {
+            "HIGH": 150.0, "MEDIUM": 80.0, "LOW": 30.0, "NONE": 10.0
+        }),
+        boat_capacity_kg=float(data.get("boat_capacity_kg", 300.0)),
+    )
+
+
+RISK = _init_risk_config()
+ROUTE_SCORING = RISK.route_scoring
+TRIP_ECONOMICS = _init_trip_economics()
 
 
 # --------------------------------------------------------------------------
