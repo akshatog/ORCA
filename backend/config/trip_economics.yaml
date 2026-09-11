@@ -1,0 +1,17 @@
+# ORCA 2.0 Trip Economics Configuration
+# Governs fuel cost calculations, catch revenue estimates, and trip economics.
+# Separation rule: Trip economics is informational and NEVER overrides safety decisions.
+
+fuel_rate_l_per_km: 1.2           # liters of fuel per km (typical small craft)
+fuel_price_per_l: 95.0            # INR per liter (diesel benchmark)
+fixed_provisions_estimate: 500.0  # INR per trip (ice, food, bait, gear wear)
+avg_market_price_per_kg: 180.0    # INR per kg average landing center market price
+
+# Estimated catch in kg based on INCOIS PFZ advisory potential
+catch_potential_kg:
+  HIGH: 150.0
+  MEDIUM: 80.0
+  LOW: 30.0
+  NONE: 10.0
+
+boat_capacity_kg: 300.0           # max payload capacity for catch

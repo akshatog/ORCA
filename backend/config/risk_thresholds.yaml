@@ -1,0 +1,46 @@
+# ORCA 2.0 Risk Thresholds & Safety Floors Configuration
+# Everything is centralized here so judges and operators can inspect and configure thresholds.
+
+weights:
+  wave: 0.25     # dominant capsize driver for small craft
+  cyclone: 0.25  # official alerts / storm proximity
+  wind: 0.20
+  weather: 0.10  # rain, lightning, visibility
+  ocean: 0.10    # sea state, currents
+  gis: 0.10      # distance offshore, restricted-zone proximity
+
+thresholds:
+  LOW: 25
+  MODERATE: 50
+  HIGH: 79
+  EXTREME: 100
+
+floors:
+  severe_warning_floor: 92     # cyclone / tsunami / severe marine warning
+  fishermen_warning_floor: 70  # "fishermen advised not to venture"
+  wave_danger_m: 4.0
+  wave_danger_floor: 85
+  wind_danger_kmh: 62.0        # ~34 kt, gale force
+  wind_danger_floor: 85
+  restricted_zone_floor: 60
+
+condition_floors:
+  CAUTION_FLOOR:
+    wave_height_m: 1.2
+    wind_speed_kmph: 37        # ~20 knots
+  NO_GO_FLOOR:
+    wave_height_m: 3.0
+    wind_speed_kmph: 63        # ~34 knots, gale warning
+    official_advisory: true
+  CYCLONE_FLOOR:
+    gdacs_alert_level:
+      - "orange"
+      - "red"
+
+route_scoring:
+  avg_weight: 0.70             # weight of average waypoint risk in path score
+  spike_weight: 0.30           # weight of worst waypoint (storm-band penalty)
+  wave_weight: 0.60            # within each waypoint: wave vs wind split
+  wind_weight: 0.40
+  samples_per_route: 5         # target number of waypoints sampled per route
+  min_sample_spacing_km: 8.0   # never sample closer than this (km)

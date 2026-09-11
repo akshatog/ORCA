@@ -20,3 +20,13 @@ const isPhone =
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>{isPhone ? <MobileApp /> : <App />}</React.StrictMode>,
 );
+
+// Register PWA service worker for offline maritime support
+if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("ServiceWorker registration skipped:", err);
+    });
+  });
+}
+

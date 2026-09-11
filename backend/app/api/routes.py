@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from ..agents import ocean_agent, route_agent, weather_agent
@@ -48,7 +48,7 @@ def switch_mode(req: ModeRequest) -> dict:
     try:
         mode = set_data_mode(req.mode)
     except ValueError as exc:
-        return {"ok": False, "error": str(exc), "data_mode": get_data_mode()}
+        raise HTTPException(status_code=422, detail=str(exc))
     # A fresh toggle should mean fresh data, not ten minutes of remembered series.
     live_client.clear_cache()
     from . import field as field_api

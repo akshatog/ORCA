@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as api from "../api";
-import type { FishingOutlook, Language, ZoneFeature } from "../types";
+import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
+import type { AlertEvent, FishingOutlook, Language, SupportedLanguage, Voyage, ZoneFeature } from "../types";
 import { RATING_COLOR } from "./FishingPanel";
+import AlertBanner from "./AlertBanner";
+import AlertsPanel from "./AlertsPanel";
+import RiskTimeline from "./RiskTimeline";
 import {
   BoatGlyph,
   ChartDefs,
@@ -100,17 +104,33 @@ const T: Record<Language, Record<string, string>> = {
   },
 };
 
-const SPEECH_LOCALE: Record<Language, string> = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" };
+const SPEECH_LOCALE: Record<string, string> = {
+  en: "en-IN",
+  hi: "hi-IN",
+  mr: "mr-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+  bn: "bn-IN",
+  ml: "ml-IN",
+};
 
-function speak(text: string, lang: Language) {
+async function speak(text: string, lang: string) {
   try {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = SPEECH_LOCALE[lang];
-    u.rate = 0.95;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    const loc = SPEECH_LOCALE[lang] || "hi-IN";
+    const audioBlob = await api.speakText(text, loc, "aditya");
+    const audio = new Audio(URL.createObjectURL(audioBlob));
+    audio.play();
+    return audio;
   } catch {
-    /* no TTS — the text is on screen anyway */
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = SPEECH_LOCALE[lang] || "hi-IN";
+      u.rate = 0.95;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      /* no TTS fallback */
+    }
   }
 }
 
@@ -126,11 +146,16 @@ function getRecognition(): any | null {
 }
 
 export default function MobileApp() {
-  const [language, setLanguage] = useState<Language>(() => {
-    const l = new URLSearchParams(window.location.search).get("lang");
-    return l === "hi" || l === "mr" || l === "en" ? l : "en";
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    const l = new URLSearchParams(window.location.search).get("lang") as SupportedLanguage;
+    return l || "en";
   });
-  const t = T[language] ?? T.en;
+  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+  const t = T[uiLang] ?? T.en;
+
+  const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
+  const [activeVoyage, setActiveVoyage] = useState<Voyage | null>(null);
+  const [voyageLoading, setVoyageLoading] = useState(false);
 
   const [tab, setTab] = useState<MTab>(() => {
     const tp = new URLSearchParams(window.location.search).get("tab");
@@ -147,8 +172,11 @@ export default function MobileApp() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recRef = useRef<any>(null);
+  const [agentProgress, setAgentProgress] = useState<string | null>(null);
+
+  // ---- geofence state (for map tab) ----
+  const [geofenceStatus, setGeofenceStatus] = useState<"clear" | "warning" | "critical">("clear");
+  const [geofenceMsg, setGeofenceMsg] = useState<string | null>(null);
 
   // Temporary layout probe: ?debug=1 prints the widest elements on screen so
   // headless screenshots can carry their own diagnosis.
@@ -217,6 +245,73 @@ export default function MobileApp() {
     };
   }, [place?.lat, place?.lon, language]);
 
+  // ---------------------------------------------------------------- voyage & alerts
+  useEffect(() => {
+    api
+      .getActiveVoyages()
+      .then((v) => {
+        if (v.length > 0) setActiveVoyage(v[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!activeVoyage) return;
+    const timer = setInterval(async () => {
+      try {
+        const active = await api.getActiveVoyages();
+        const current = active.find((v) => v.voyage_id === activeVoyage.voyage_id);
+        if (current) {
+          setActiveVoyage(current);
+        }
+      } catch {}
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [activeVoyage?.voyage_id]);
+
+  const handleToggleVoyage = async () => {
+    if (activeVoyage) {
+      setVoyageLoading(true);
+      try {
+        await api.endVoyage(activeVoyage.voyage_id);
+        setActiveVoyage(null);
+        setActiveAlert(null);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setVoyageLoading(false);
+      }
+    } else if (place) {
+      setVoyageLoading(true);
+      try {
+        const res = await api.startVoyage({
+          location: {
+            lat: place.lat,
+            lon: place.lon,
+            name: outlook?.location.nearest_landing_centre || place.name || "Kochi",
+          },
+          voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
+        });
+        setActiveVoyage({
+          voyage_id: res.voyage_id,
+          location: res.location || { lat: place.lat, lon: place.lon, name: place.name },
+          started_at: res.started_at,
+          status: "ACTIVE",
+        });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setVoyageLoading(false);
+      }
+    }
+  };
+
+  const handleDivertSafePort = (safePort: { name: string; lat: number; lon: number }) => {
+    setPlace({ lat: safePort.lat, lon: safePort.lon, name: safePort.name });
+    setActiveAlert(null);
+    setTab("map");
+  };
+
   // ---------------------------------------------------------------- voice
   const speakPlan = () => {
     if (!outlook) return;
@@ -244,39 +339,56 @@ export default function MobileApp() {
     }, 400);
   };
 
-  const askVoice = () => {
-    if (listening) {
-      recRef.current?.stop();
-      setListening(false);
+  const fallbackRecognition = useCallback(() => {
+    const rec = getRecognition();
+    if (!rec) {
+      console.error("SpeechRecognition not supported in this browser.");
       return;
     }
-    const rec = getRecognition();
-    if (!rec) return;
     rec.lang = SPEECH_LOCALE[language];
     rec.interimResults = false;
+    rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
-      setListening(false);
-      sendAsk(e.results[0][0].transcript);
+      const said = e.results[0][0].transcript;
+      sendAsk(said);
     };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    recRef.current = rec;
     rec.start();
-    setListening(true);
-  };
+  }, [language]);
+
+  const { state: voiceState, toggleRecording } = useVoiceRecorder({
+    language: SPEECH_LOCALE[language],
+    onTranscript: (said) => sendAsk(said),
+    onFallback: fallbackRecognition,
+  });
 
   const sendAsk = async (text: string) => {
     setQuestion(text);
     setAnswer(null);
+    setAgentProgress(null);
     setBusy(true);
     try {
-      const res = await api.ask({ message: text, sessionId: SESSION });
-      setAnswer(res.answer);
-      setSuggestions(res.suggestions.slice(0, 3));
-      if (res.language !== language) setLanguage(res.language);
-      speak(res.answer.split(". ").slice(0, 3).join(". "), res.language);
-    } catch {
-      setAnswer("…");
+      await api.askStream(
+        { message: text, sessionId: SESSION },
+        (e) => {
+          // Show live agent progress: "Checking weather…", "Scoring risk…"
+          if (e.type === "thinking" && e.step) {
+            setAgentProgress(e.step);
+          } else if (e.type === "agent_done") {
+            setAgentProgress(e.label ?? e.agent);
+          }
+        },
+        (res) => {
+          setAnswer(res.answer);
+          setAgentProgress(null);
+          setSuggestions(res.suggestions.slice(0, 3));
+          if (res.language !== language) setLanguage(res.language as SupportedLanguage);
+          speak(res.answer.split(". ").slice(0, 3).join(". "), res.language);
+        },
+        (_err) => {
+          setAnswer("Could not reach ORCA — is the backend running?");
+          setAgentProgress(null);
+        },
+      );
     } finally {
       setBusy(false);
     }
@@ -322,27 +434,79 @@ export default function MobileApp() {
             </div>
           )}
         </div>
-        <div className="ml-auto flex gap-1">
-          {(["en", "hi", "mr"] as Language[]).map((l) => (
+        <div className="ml-auto flex items-center gap-1 overflow-x-auto max-w-[200px] no-scrollbar py-0.5">
+          {([
+            ["en", "EN"],
+            ["hi", "हिं"],
+            ["mr", "मरा"],
+            ["ta", "தமி"],
+            ["te", "తెలు"],
+            ["bn", "বাংলা"],
+            ["ml", "മല"],
+          ] as const).map(([code, label]) => (
             <button
-              key={l}
-              onClick={() => setLanguage(l)}
-              className={`min-w-[42px] rounded-[2px] border px-2 py-2 font-mono text-[13px] font-bold transition ${
-                language === l
+              key={code}
+              onClick={() => setLanguage(code as SupportedLanguage)}
+              className={`shrink-0 rounded-[2px] border px-2 py-1 font-mono text-[11px] font-bold transition ${
+                language === code
                   ? "border-ink-900 bg-ink-900 text-paper-50"
-                  : "text-ink-400"
+                  : "text-ink-400 bg-paper-50"
               }`}
-              style={language === l ? undefined : { borderColor: "var(--rule)" }}
+              style={language === code ? undefined : { borderColor: "var(--rule)" }}
             >
-              {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
+              {label}
             </button>
           ))}
         </div>
       </header>
 
+      {/* active alert banner */}
+      {activeAlert && (
+        <div className="px-3 pt-2">
+          <AlertBanner
+            alert={activeAlert}
+            onDismiss={() => setActiveAlert(null)}
+            onDivert={handleDivertSafePort}
+            language={uiLang}
+          />
+        </div>
+      )}
+
       {/* ================= TODAY ================= */}
       {tab === "today" && (
         <main className="flex-1 space-y-3 px-3 pb-24 pt-3">
+          {/* Voyage status & quick toggle */}
+          <div className="panel flex items-center justify-between gap-3 bg-paper-50 p-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    activeVoyage ? "bg-risk-low animate-pulse" : "bg-ink-300"
+                  }`}
+                />
+                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-700">
+                  {activeVoyage ? "Voyage Active" : "In Harbour"}
+                </span>
+              </div>
+              <div className="mt-0.5 truncate font-mono text-[10px] text-ink-500">
+                {activeVoyage
+                  ? `Voyage ${activeVoyage.voyage_id.slice(0, 8)} • ${activeVoyage.location?.name || "At Sea"}`
+                  : "Ready to log departure"}
+              </div>
+            </div>
+            <button
+              onClick={handleToggleVoyage}
+              disabled={voyageLoading || !place}
+              className={`shrink-0 rounded-[3px] px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-wide transition ${
+                activeVoyage
+                  ? "border border-risk-extreme/60 bg-risk-extreme/10 text-risk-extreme"
+                  : "bg-chart-600 text-paper-50"
+              }`}
+            >
+              {voyageLoading ? "..." : activeVoyage ? "End Trip" : "Start Trip"}
+            </button>
+          </div>
+
           {!outlook && (
             <div className="panel flex flex-col items-center gap-3 p-10 text-center">
               <CompassMark
@@ -400,6 +564,26 @@ export default function MobileApp() {
                   </span>
                   <SpeakerGlyph size={18} className="ml-auto shrink-0 text-risk-extreme" />
                 </button>
+              )}
+
+              {/* Live alerts from GET /api/alerts */}
+              {place && (
+                <AlertsPanel lat={place.lat} lon={place.lon} compact refreshMs={60000} />
+              )}
+
+              {/* Risk timeline mini-chart */}
+              {place && (
+                <div className="panel overflow-hidden">
+                  <div className="hd !py-2">
+                    <span className="label !text-[10px]">Risk Forecast (24h)</span>
+                  </div>
+                  <div className="px-2 pb-1">
+                    <RiskTimeline
+                      location={{ name: outlook?.location.nearest_landing_centre ?? place.name, latitude: place.lat, longitude: place.lon }}
+                      language={uiLang}
+                    />
+                  </div>
+                </div>
               )}
 
               {/* times — big numerals, tiny labels */}
@@ -491,6 +675,19 @@ export default function MobileApp() {
       {/* ================= MAP ================= */}
       {tab === "map" && (
         <main className="flex-1 px-2 pb-20 pt-2">
+          {/* Geofence warning banner when near restricted zone */}
+          {geofenceStatus !== "clear" && geofenceMsg && (
+            <div
+              className={`mb-2 flex items-center gap-2 rounded-[3px] px-3 py-2 text-[12.5px] font-semibold ${
+                geofenceStatus === "critical"
+                  ? "bg-risk-extreme/10 text-risk-extreme"
+                  : "bg-risk-high/10 text-risk-high"
+              }`}
+            >
+              <WarnGlyph size={14} className="shrink-0" />
+              {geofenceMsg}
+            </div>
+          )}
           <MarineMap
             origin={
               place
@@ -503,8 +700,18 @@ export default function MobileApp() {
             radiusKm={outlook?.radius_km ?? 100}
             routes={outlook?.routes ?? []}
             geofence={[]}
-            language={language}
-            onPickLocation={(lat, lon) => setPlace({ lat, lon, name: "—" })}
+            language={uiLang}
+            onPickLocation={(lat, lon) => {
+              const p = { lat, lon, name: "—" };
+              setPlace(p);
+              // Check geofence immediately on map click
+              api.checkPosition(lat, lon)
+                .then((pos) => {
+                  setGeofenceStatus(pos.status as any);
+                  setGeofenceMsg(pos.status !== "clear" ? pos.headline : null);
+                })
+                .catch(() => {});
+            }}
             focusRank={focusRank}
             heightPx={mapH}
           />
@@ -516,18 +723,20 @@ export default function MobileApp() {
         <main className="flex flex-1 flex-col items-center gap-4 px-4 pb-24 pt-6">
           {/* the mic IS the interface */}
           <button
-            onClick={askVoice}
+            onClick={toggleRecording}
             className={`grid h-36 w-36 place-items-center rounded-full border-[6px] transition active:scale-95 ${
-              listening
+              voiceState === "recording"
                 ? "border-risk-extreme bg-risk-extreme text-paper-50"
+                : voiceState === "processing"
+                ? "border-chart-400 bg-chart-400 text-paper-50"
                 : "border-ink-900 bg-paper-50 text-ink-900"
             }`}
-            style={listening ? { animation: "inkblink 1.1s ease-in-out infinite" } : undefined}
+            style={voiceState === "recording" || voiceState === "processing" ? { animation: "inkblink 1.1s ease-in-out infinite" } : undefined}
           >
-            {listening ? <StopGlyph size={44} /> : <MicGlyph size={64} />}
+            {voiceState === "recording" ? <StopGlyph size={44} /> : voiceState === "processing" ? <span className="animate-spin text-2xl">...</span> : <MicGlyph size={64} />}
           </button>
           <div className="font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-ink-500">
-            {listening ? t.listening : busy ? t.thinking : t.tapMic}
+            {voiceState === "recording" ? t.listening : (busy || voiceState === "processing") ? (agentProgress ? agentProgress + "…" : t.thinking) : t.tapMic}
           </div>
 
           {question && (

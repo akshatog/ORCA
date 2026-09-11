@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 from app.agents import planner
 from app.schemas import ChatRequest
 

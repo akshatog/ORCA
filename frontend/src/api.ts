@@ -1,10 +1,16 @@
 import type {
+  AlertEvent,
   AuthorityDashboard,
   ChatResponse,
+  DecisionState,
   FishingOutlook,
   Language,
+  ORCAState,
   PositionCheck,
   RiskCategory,
+  SupportedLanguage,
+  TraceEntry,
+  Voyage,
   ZoneFeature,
 } from "./types";
 
@@ -38,6 +44,70 @@ export function ask(params: {
       session_id: params.sessionId ?? "demo",
     }),
   });
+}
+
+export interface AgentEvent {
+  type: "thinking" | "agent_done";
+  step?: string;
+  agent: string;
+  label?: string;
+  summary?: string;
+  status?: string;
+}
+
+/** SSE streaming ask — yields agent events then the final ChatResponse. */
+export async function askStream(
+  params: {
+    message: string;
+    language?: SupportedLanguage | string;
+    latitude?: number;
+    longitude?: number;
+    locationName?: string;
+    sessionId?: string;
+  },
+  onEvent: (e: AgentEvent) => void,
+  onDone: (res: ChatResponse) => void,
+  onError: (err: string) => void,
+): Promise<void> {
+  try {
+    const res = await fetch(`${BASE}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: params.message,
+        language: params.language ?? null,
+        latitude: params.latitude ?? null,
+        longitude: params.longitude ?? null,
+        location_name: params.locationName ?? null,
+        session_id: params.sessionId ?? "demo",
+      }),
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+      for (const chunk of parts) {
+        if (!chunk.trim()) continue;
+        const eventLine = chunk.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+        const dataLine = chunk.match(/^data:\s*(.+)$/m)?.[1]?.trim();
+        if (!eventLine || !dataLine) continue;
+        const parsed = JSON.parse(dataLine);
+        if (eventLine === "done") {
+          onDone(parsed as ChatResponse);
+        } else {
+          onEvent({ type: eventLine as AgentEvent["type"], ...parsed });
+        }
+      }
+    }
+  } catch (e) {
+    onError(String(e));
+  }
 }
 
 export function resetSession(sessionId = "demo") {
@@ -77,7 +147,7 @@ export function checkPosition(lat: number, lon: number): Promise<PositionCheck> 
 export function fishingOutlook(
   lat: number,
   lon: number,
-  opts: { radiusKm?: number; days?: number; lang?: Language } = {},
+  opts: { radiusKm?: number; days?: number; lang?: SupportedLanguage | string } = {},
 ): Promise<FishingOutlook> {
   const p = new URLSearchParams({
     lat: String(lat),
@@ -183,4 +253,187 @@ export function config() {
     deterministic_overrides: Record<string, number>;
     note: string;
   }>(`${BASE}/config`);
+}
+
+// --------------------------------------------------------------------------
+// ORCA 2.0 Plan, Trace, Voyage, Alert & Voice Endpoints
+// --------------------------------------------------------------------------
+
+export function fetchPlan(params: {
+  query?: string;
+  intent_text?: string;
+  language?: SupportedLanguage | string;
+  location?: { lat: number; lon: number; name?: string } | null;
+}): Promise<DecisionState> {
+  return json<DecisionState>(`${BASE}/plan`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function fetchTrace(requestId: string): Promise<TraceEntry[]> {
+  return json<TraceEntry[]>(`${BASE}/trace/${encodeURIComponent(requestId)}`);
+}
+
+export function fetchState(requestId: string): Promise<ORCAState> {
+  return json<ORCAState>(`${BASE}/state/${encodeURIComponent(requestId)}`);
+}
+
+export function startVoyage(params: {
+  location: { lat: number; lon: number; name?: string };
+  region_geometry?: any;
+  voyage_id?: string;
+}): Promise<{ voyage_id: string; started_at: string; status: string; location: any }> {
+  return json(`${BASE}/voyages/start`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export function getActiveVoyages(): Promise<Voyage[]> {
+  return json<Voyage[]>(`${BASE}/voyages/active`);
+}
+
+export function endVoyage(voyageId: string): Promise<{ status: string; voyage_id: string }> {
+  return json(`${BASE}/voyages/${encodeURIComponent(voyageId)}/end`, {
+    method: "POST",
+  });
+}
+
+export function triggerAlert(params: {
+  voyage_id?: string;
+  evidence?: any;
+  advisory?: any;
+  severity?: string;
+  headline?: string;
+}): Promise<{ alerts: AlertEvent[] }> {
+  return json<{ alerts: AlertEvent[] }>(`${BASE}/alerts/trigger`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function transcribeVoice(
+  audioBlob: Blob,
+  language = "hi-IN",
+): Promise<{ transcript: string; language: string; engine: string }> {
+  const formData = new FormData();
+  const ext = audioBlob.type.includes("webm") ? "webm" : audioBlob.type.includes("mp4") ? "mp4" : "wav";
+  formData.append("file", audioBlob, `recording.${ext}`);
+  formData.append("language", language);
+
+  const res = await fetch(`${BASE}/voice/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail?.error || `${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function speakText(
+  text: string,
+  language = "hi-IN",
+  voiceId = "aditya",
+): Promise<Blob> {
+  const res = await fetch(`${BASE}/voice/speak`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language, voice_id: voiceId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail?.error || `${res.status} ${res.statusText}`);
+  }
+  return res.blob();
+}
+
+// --------------------------------------------------------------------------
+// Alerts — GET /api/alerts (marine + geofence at a lat/lon)
+// --------------------------------------------------------------------------
+export interface LocationAlerts {
+  location: { name: string; latitude: number; longitude: number; state?: string | null };
+  marine_alerts: Array<{
+    type: string;
+    severity: string;
+    official: boolean;
+    headline: string;
+    detail: string;
+    source: string;
+    valid_till?: string;
+    storm?: { latitude: number; longitude: number; radius_km: number };
+  }>;
+  geofence_alerts: Array<{
+    zone_name: string;
+    zone_type: string;
+    distance_km: number;
+    inside: boolean;
+    severity: "info" | "warning" | "critical";
+    message: string;
+  }>;
+  generated_at: string;
+}
+
+export function locationAlerts(lat: number, lon: number): Promise<LocationAlerts> {
+  return json<LocationAlerts>(`${BASE}/alerts?lat=${lat}&lon=${lon}`);
+}
+
+// --------------------------------------------------------------------------
+// Quick Risk — GET /api/risk (full per-agent risk breakdown)
+// --------------------------------------------------------------------------
+export interface RiskBreakdown {
+  location: { name: string; latitude: number; longitude: number; state?: string | null };
+  valid_for: string;
+  risk: {
+    score: number;
+    category: "LOW" | "MODERATE" | "HIGH" | "EXTREME";
+    factors: Array<{ key: string; label: string; factor: number; weight: number; contribution: number; detail: string }>;
+    overrides: string[];
+    official_warning: boolean;
+    go: boolean;
+    headline: string;
+    advice: string[];
+    window: string | null;
+    sources: string[];
+    generated_at: string;
+    mode: string;
+  };
+  inputs: {
+    weather: Record<string, unknown>;
+    ocean: Record<string, unknown>;
+    alerts: Record<string, unknown>;
+    gis: Record<string, unknown>;
+  };
+}
+
+export function quickRisk(lat: number, lon: number): Promise<RiskBreakdown> {
+  return json<RiskBreakdown>(`${BASE}/risk?lat=${lat}&lon=${lon}`);
+}
+
+// --------------------------------------------------------------------------
+// Map layers — ports + PFZ GeoJSON
+// --------------------------------------------------------------------------
+export function mapPorts(): Promise<{ type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { id: string; name: string; state: string }; geometry: { type: "Point"; coordinates: [number, number] } }> }> {
+  return json(`${BASE}/map/ports`);
+}
+
+export function mapPfz(lat: number, lon: number, count = 5): Promise<{ type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: Record<string, unknown>; geometry: { type: "Point"; coordinates: [number, number] } }> }> {
+  return json(`${BASE}/map/pfz?lat=${lat}&lon=${lon}&count=${count}`);
+}
+
+// --------------------------------------------------------------------------
+// Live scenarios catalogue — GET /api/scenarios
+// --------------------------------------------------------------------------
+export interface ScenarioItem {
+  id: string;
+  n: string;
+  label: { en: string; hi: string; mr: string };
+  ask: string;
+  hint: string;
+}
+
+export function liveScenarios(): Promise<{ scenarios: ScenarioItem[] }> {
+  return json<{ scenarios: ScenarioItem[] }>(`${BASE}/scenarios`);
 }

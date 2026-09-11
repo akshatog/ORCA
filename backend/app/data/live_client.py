@@ -36,8 +36,9 @@ from __future__ import annotations
 
 import threading
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
@@ -45,13 +46,17 @@ from ..config import LIVE_TIMEOUT_SECONDS
 
 MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+GDACS_URL = "https://www.gdacs.org/xml/rss.xml"
 
 CACHE_TTL_OK = 600.0     # forecast data does not change minute to minute
 CACHE_TTL_FAIL = 60.0    # remember failures briefly so offline mode fails fast
 CACHE_MAX_ENTRIES = 256  # plenty for every port + a demo's worth of map taps
+GDACS_TTL = 900.0        # 15 minutes refresh for cyclones / disaster alerts
 
 # key -> (expires_at_monotonic, hourly-series dict or None)
 _cache: Dict[Tuple[str, float, float], Tuple[float, Optional[Dict]]] = {}
+_gdacs_cache: Tuple[float, List[Dict[str, Any]]] = (0.0, [])
+_last_gdacs_fingerprint: str = ""
 _lock = threading.Lock()
 _client: Optional[httpx.Client] = None
 
@@ -112,8 +117,11 @@ def _series(kind: str, url: str, hourly_fields: str, lat: float, lon: float,
 
 def clear_cache() -> None:
     """Drop cached series — used when the data mode is toggled."""
+    global _gdacs_cache, _last_gdacs_fingerprint
     with _lock:
         _cache.clear()
+        _gdacs_cache = (0.0, [])
+        _last_gdacs_fingerprint = ""
 
 
 def _pick_hour_index(times: list, target: datetime) -> int:
@@ -176,3 +184,136 @@ def fetch_weather(lat: float, lon: float, when: datetime) -> Optional[Dict]:
         "valid_time": times[i],
         "provider": "Open-Meteo",
     }
+
+
+def parse_gdacs_xml(xml_content: str) -> List[Dict[str, Any]]:
+    """Parse GDACS RSS XML and filter for Indian Ocean cyclones and maritime events."""
+    entries: List[Dict[str, Any]] = []
+    if not xml_content or not xml_content.strip():
+        return []
+
+    try:
+        root = ET.fromstring(xml_content)
+    except Exception:
+        return []
+
+    channel = root.find("channel")
+    items = channel.findall("item") if channel is not None else root.findall("item")
+
+    for item in items:
+        title = (item.findtext("title") or "").strip()
+        desc = (item.findtext("description") or "").strip()
+        link = (item.findtext("link") or "").strip()
+        pub_date = (item.findtext("pubDate") or "").strip()
+
+        event_type = ""
+        alert_level = "Green"
+        for child in item:
+            tag = child.tag.split("}")[-1].lower()
+            if tag == "eventtype":
+                event_type = (child.text or "").strip()
+            elif tag == "alertlevel":
+                alert_level = (child.text or "").strip().capitalize()
+
+        lat, lon = None, None
+        for child in item:
+            tag = child.tag.split("}")[-1].lower()
+            if tag == "lat":
+                try:
+                    lat = float(child.text or "")
+                except Exception:
+                    pass
+            elif tag in ("long", "lon"):
+                try:
+                    lon = float(child.text or "")
+                except Exception:
+                    pass
+            elif tag == "point":
+                parts = (child.text or "").strip().split()
+                if len(parts) == 2:
+                    try:
+                        lat, lon = float(parts[0]), float(parts[1])
+                    except Exception:
+                        pass
+
+        # Geographic bounding for Indian Ocean:
+        # Latitude: -15.0 to 32.0, Longitude: 50.0 to 100.0
+        in_bbox = False
+        if lat is not None and lon is not None:
+            if -15.0 <= lat <= 32.0 and 50.0 <= lon <= 100.0:
+                in_bbox = True
+
+        combined_text = f"{title} {desc}".lower()
+        indian_ocean_keywords = [
+            "indian ocean", "arabian sea", "bay of bengal", "india",
+            "sri lanka", "andaman", "nicobar", "lakshadweep", "gujarat", "odisha"
+        ]
+        has_keywords = any(kw in combined_text for kw in indian_ocean_keywords)
+
+        if in_bbox or has_keywords:
+            entries.append({
+                "title": title,
+                "description": desc,
+                "link": link,
+                "pub_date": pub_date,
+                "event_type": event_type or ("TC" if "cyclone" in combined_text else "OTHER"),
+                "alert_level": alert_level,
+                "lat": lat,
+                "lon": lon,
+            })
+
+    return entries
+
+
+def fetch_gdacs(force: bool = False) -> List[Dict[str, Any]]:
+    """Fetch and parse GDACS RSS feed with a 15-minute TTL.
+
+    Filters for Indian Ocean events. If new events are detected, triggers on_evidence_change().
+    """
+    global _gdacs_cache, _last_gdacs_fingerprint
+    now = time.monotonic()
+    if not force and _gdacs_cache[0] > now:
+        return _gdacs_cache[1]
+
+    entries: List[Dict[str, Any]] = []
+    try:
+        resp = _http().get(GDACS_URL)
+        if resp.status_code == 200:
+            entries = parse_gdacs_xml(resp.text)
+    except Exception:
+        entries = _gdacs_cache[1]
+
+    _gdacs_cache = (now + GDACS_TTL, entries)
+
+    fingerprint = "|".join(f"{e.get('title')}:{e.get('alert_level')}" for e in entries)
+    if fingerprint != _last_gdacs_fingerprint:
+        _last_gdacs_fingerprint = fingerprint
+        if entries:
+            try:
+                from ..services.alert_engine import on_evidence_change
+                from ..schemas import make_evidence
+                from datetime import datetime, timezone
+                evidences = []
+                for e in entries:
+                    evidences.append(
+                        make_evidence(
+                            metric="gdacs_cyclone_alert",
+                            value={
+                                "alert_level": e.get("alert_level"),
+                                "title": e.get("title"),
+                                "lat": e.get("lat"),
+                                "lon": e.get("lon"),
+                            },
+                            source="GDACS",
+                            confidence=0.90,
+                            authority_level="official_forecast",
+                            mode="LIVE",
+                            observed_at=datetime.now(timezone.utc),
+                        )
+                    )
+                on_evidence_change(new_evidence=evidences)
+            except Exception:
+                pass
+
+    return entries
+

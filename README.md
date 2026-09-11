@@ -150,7 +150,7 @@ in, and the four-phase decision pipeline. Every deep link skips it.
 - **Areas to stay out of**, with the hours they are closed
 
 ### Ask ORCA — the conversational view
-- Ask in **English, Hindi or Marathi**, typing or speaking (browser Web Speech API — no key)
+- Ask in **English, Hindi or Marathi**, typing or speaking (powered by **Sarvam AI STT/TTS**)
 - Language is **auto-detected**; spoken answers come back in the same language
 - **Risk verdict as a stamped document** — 0–100 instrument dial, ranked factor
   contributions, deterministic overrides shown as the trust moment they are
@@ -158,7 +158,7 @@ in, and the four-phase decision pipeline. Every deep link skips it.
 - **Conditions instrument bank** — wave, wind, sea state, rain, visibility, SST
 - **Context is kept** — *"what about 12 PM?"* re-checks only what changed
 - **Agent crew panel** — the real execution trace, grouped by phase, with measured
-  latencies and the parallel fan-out made visible
+  latencies and the parallel fan-out made visible via **SSE streaming**
 
 ### The chart (both views)
 A drafted nautical chart, alive: tick-marked neatline, compass rose, **hatched
@@ -227,7 +227,7 @@ flowchart LR
 ```
 
 Ten agents: `intent · planner · weather · ocean · pfz · cyclone · gis · risk · route · explanation` —
-independent specialists run concurrently via a `ThreadPoolExecutor` fan-out in
+independent specialists run concurrently via a **LangGraph** orchestration pipeline in
 `agents/planner.py`. The risk engine waits for all of them; no agent's opinion can skip it.
 
 <details>
@@ -414,14 +414,13 @@ Interactive docs: <http://127.0.0.1:8000/docs>
 
 ## The stack
 
-**Backend** — Python 3.10 · FastAPI · pydantic v2 · httpx. **Four dependencies**,
+**Backend** — Python 3.10 · FastAPI · pydantic v2 · **LangGraph** · httpx. **Five dependencies**,
 so it installs in seconds on any laptop. Geometry (haversine, ray-casting
 point-in-polygon, A*, the landmass layer) is pure Python: no shapely/GEOS install
 to fail on stage. PostGIS and XGBoost are the documented production path, not
-demo requirements.
+demo requirements. Voice processing is powered by **Sarvam AI (Saaras STT / Bulbul TTS)**.
 
-**Frontend** — React 18 · TypeScript · Tailwind · Leaflet · Vite. Voice in/out is
-the browser's own Web Speech API — no key, no server round-trip.
+**Frontend** — React 18 · TypeScript · Tailwind · Leaflet · Vite. The client converts raw microphone `audio/webm` to `WAV (PCM 16-bit)` natively in-browser via the Web Audio API before streaming it to the backend.
 
 ```
 orca/

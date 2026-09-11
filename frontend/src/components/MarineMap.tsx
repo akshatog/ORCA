@@ -112,6 +112,8 @@ export default function MarineMap({
   onPickLocation,
   focusRank,
   heightPx,
+  portFeatures,
+  pfzGeoJson,
 }: {
   origin: Location | null;
   zones: ZoneFeature[];
@@ -129,6 +131,10 @@ export default function MarineMap({
   /** Tap anywhere on the water to move the fisher's position. */
   onPickLocation?: (lat: number, lon: number) => void;
   focusRank?: number | null;
+  /** Live port markers from GET /api/map/ports — clicking sets the active location. */
+  portFeatures?: Array<{ name: string; state: string; lat: number; lon: number }>;
+  /** PFZ GeoJSON points from GET /api/map/pfz — shown when no scored areas exist. */
+  pfzGeoJson?: Array<{ lat: number; lon: number; label?: string; confidence?: number }>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -339,6 +345,43 @@ export default function MarineMap({
           `<b>${r.name}</b><br/>${r.distance_km} km · ${Math.round(r.eta_minutes)} min<br/><span style="font-size:11px;opacity:.8">${r.notes}</span>`,
         )
         .addTo(group);
+
+      // Render waypoint condition risk dots along sampled path.
+      // Fields align to backend schemas.py::WaypointCondition
+      // ({lat, lon, distance_from_start_km, wave_m, wind_kmh, risk_factor, risk_level}).
+      // risk_factor is 0-1; scale to 0-100 for display/colour. All reads are
+      // guarded so a missing/partial waypoint can never throw during render.
+      if (r.waypoint_conditions && r.waypoint_conditions.length > 0) {
+        r.waypoint_conditions.forEach((wp, i) => {
+          if (wp?.lat == null || wp?.lon == null) return; // can't place a dot without a position
+          const riskScore = typeof wp.risk_factor === "number" ? wp.risk_factor * 100 : 0;
+          const wpColor =
+            riskScore >= 50
+              ? "#c62828"
+              : riskScore >= 30
+              ? "#f57c00"
+              : "#2e7d32";
+          const dist = wp.distance_from_start_km?.toFixed(1) ?? "—";
+          const wave = wp.wave_m?.toFixed(1) ?? "—";
+          const wind = wp.wind_kmh?.toFixed(1) ?? "—";
+          L.circleMarker([wp.lat, wp.lon], {
+            radius: 5,
+            fillColor: wpColor,
+            color: "#ffffff",
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.9,
+          })
+            .bindPopup(
+              `<div style="font-family:${MONO};font-size:11px;line-height:1.4">
+                <b>Waypoint #${i + 1}</b> (${dist} km)<br/>
+                <span style="color:${wpColor};font-weight:bold">Risk: ${Math.round(riskScore)} (${wp.risk_level ?? "—"})</span><br/>
+                Wave: ${wave} m · Wind: ${wind} km/h
+              </div>`
+            )
+            .addTo(group);
+        });
+      }
     });
 
     // fishing grounds as numbered buoys: paper face, rating-coloured ring,
@@ -406,6 +449,30 @@ export default function MarineMap({
           .addTo(group);
         bounds.push([z.latitude, z.longitude]);
       });
+
+      // PFZ GeoJSON layer from GET /api/map/pfz — secondary source when pfz[] is also empty
+      (pfzGeoJson ?? []).forEach((pt, i) => {
+        const size = 28;
+        const color = "#2A7391";
+        L.marker([pt.lat, pt.lon], {
+          icon: L.divIcon({
+            className: "",
+            iconSize: [size, size],
+            iconAnchor: [size / 2, size / 2],
+            html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#FBF7ED;
+                       border:2.5px solid ${color};display:grid;place-items:center;
+                       box-shadow:0 2px 6px rgba(18,33,45,.35);font-size:12px">
+                     🐟
+                   </div>`,
+          }),
+        })
+          .bindPopup(
+            `<b>PFZ Advisory ${i + 1}</b><br/>${pt.label ?? "Potential Fishing Zone"}<br/>
+             ${pt.confidence != null ? `Confidence: ${Math.round(pt.confidence * 100)}%<br/>` : ""}
+             <span style="font-size:10px;opacity:.65">Official INCOIS advisory — not a guarantee.</span>`,
+          )
+          .addTo(group);
+      });
     }
 
     // draggable vessel — ink boat on a paper disc
@@ -454,9 +521,41 @@ export default function MarineMap({
       bounds.push([origin.latitude, origin.longitude]);
     }
 
+    // port markers — anchor icon; clicking fires onPickLocation
+    (portFeatures ?? []).forEach((port) => {
+      L.marker([port.lat, port.lon], {
+        zIndexOffset: -100, // below fishing grounds and the vessel
+        icon: L.divIcon({
+          className: "",
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          html: `<div style="width:28px;height:28px;border-radius:50%;background:#12212D;
+                     border:2px solid #FBF7ED;display:grid;place-items:center;
+                     box-shadow:0 2px 5px rgba(18,33,45,.45);cursor:pointer"
+                     title="${port.name}">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="#FBF7ED" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                     <circle cx="12" cy="5" r="3"/>
+                     <line x1="12" y1="8" x2="12" y2="20"/>
+                     <path d="M5 13c2 4 10 4 14 0"/>
+                   </svg>
+                 </div>`,
+        }),
+      })
+        .bindPopup(
+          `<b>⚓ ${port.name}</b><br/><span style="font-size:11px;opacity:.75">${port.state}</span><br/>
+           <a href="#" onclick="return false" style="font-size:11px">Set as my location</a>`,
+        )
+        .on("click", () => {
+          if (onPickLocation) onPickLocation(port.lat, port.lon);
+        })
+        .addTo(group);
+    });
+
     if (bounds.length > 1) map.fitBounds(L.latLngBounds(bounds).pad(0.22), { animate: true });
     else if (origin) map.setView([origin.latitude, origin.longitude], 10, { animate: true });
-  }, [origin, zones, pfz, areas, routes, radiusKm, focusRank, alerts]);
+  }, [origin, zones, pfz, pfzGeoJson, areas, routes, radiusKm, focusRank, alerts, portFeatures, onPickLocation]);
 
   // Fly to a ground when the user taps its card in the list.
   useEffect(() => {
