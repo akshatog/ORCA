@@ -3,6 +3,8 @@ import * as api from "../api";
 import type { Language } from "../types";
 import { CourseArrow, FishGlyph, LockGlyph, WarnGlyph } from "./glyphs";
 import { PORTS } from "./LocationPicker";
+import QuickRiskPanel from "./QuickRiskPanel";
+
 
 /** The joint between two stages of the pipeline — purely decorative, so the
  * four sections below read as one instrument instead of a stack of cards. */
@@ -628,6 +630,19 @@ export default function SystemPanel({
           ))}
         </div>
       </div>
+
+      {/* ---------------- live risk for current port ---------------- */}
+      {latest && (() => {
+        const p = PORTS.find((port) => port.name === latest.port) ?? PORTS[0];
+        return (
+          <div>
+            <div className="mb-2 label px-0.5">
+              Risk engine output — currently reading {latest.port}
+            </div>
+            <QuickRiskPanel lat={p.lat} lon={p.lon} full />
+          </div>
+        );
+      })()}
     </div>
   );
-}
+}

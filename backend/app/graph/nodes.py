@@ -259,9 +259,22 @@ def conflict_resolver_node(state) -> Dict[str, Any]:
     from ..services.conflict_resolver import resolve_conflicts
     reconciled_evidences, new_conflicts = resolve_conflicts(state.evidence)
     latency = int((time.perf_counter() - start) * 1000)
+    n_selected = sum(1 for e in reconciled_evidences if e.conflict_status == "selected")
+    n_overridden = sum(1 for e in reconciled_evidences if e.conflict_status == "overridden")
+    # Embed the full reconciled evidence list as a sentinel entry in conflict_log.
+    # constraint_engine_node reads it back via the __reconciled__ key so it can
+    # run on only the winning evidence without a state-schema change (the evidence
+    # field uses operator.add which appends, not replaces).
+    sentinel = {"__reconciled__": [e.model_dump(mode="json") for e in reconciled_evidences]}
     return {
-        "conflict_log": new_conflicts,
-        "trace": [_trace_entry("conflict_resolver", "ok", latency, f"Resolved {len(new_conflicts)} metric conflict(s)")],
+        "conflict_log": new_conflicts + [sentinel],
+        "trace": [
+            _trace_entry(
+                "conflict_resolver", "ok", latency,
+                f"{len(new_conflicts)} conflict(s) resolved; "
+                f"{n_selected} selected, {n_overridden} overridden"
+            )
+        ],
     }
 
 
@@ -294,12 +307,34 @@ def constraint_engine_node(state) -> Dict[str, Any]:
     start = time.perf_counter()
     now = datetime.now(timezone.utc)
 
-    # Build a flat metric → value lookup from all collected evidence.
+    # Use reconciled (conflict-resolved) evidence if the conflict_resolver ran.
+    # The reconciled list is embedded in conflict_log as the last entry with
+    # a __reconciled__ sentinel key (see conflict_resolver_node).
+    # Fallback to raw state.evidence when conflict_resolver hasn't run yet.
+    from ..schemas import Evidence as EvidenceSchema
+    from ..services.conflict_resolver import get_selected_evidence
+
+    active_evidence: List[Evidence] = state.evidence
+    if state.conflict_log:
+        last_entry = state.conflict_log[-1]
+        if isinstance(last_entry, dict) and "__reconciled__" in last_entry:
+            try:
+                raw_reconciled = last_entry["__reconciled__"]
+                reconciled_list = [EvidenceSchema(**item) for item in raw_reconciled]
+                # Use only winning (selected) evidence for risk calculation.
+                active_evidence = get_selected_evidence(reconciled_list)
+                if not active_evidence:
+                    # Defensive: if nothing is marked selected, use all
+                    active_evidence = reconciled_list
+            except Exception:
+                active_evidence = state.evidence  # safe fallback
+
+    # Build a flat metric → value lookup from conflict-resolved evidence only.
     # Metric names match what each specialist agent stores in its measurements{}:
     #   weather_node  → wave_height (ocean agent), wind_speed, rain_probability, visibility
     #   ocean_node    → wave_height, wave_period, sst  (note: no current — ocean agent omits it)
     #   gis_node      → distance_from_shore_km, nearest_zone_km, inside_restricted_zone  (explicit)
-    ev_map: Dict[str, Any] = {e.metric: e.value for e in state.evidence}
+    ev_map: Dict[str, Any] = {e.metric: e.value for e in active_evidence}
 
     # --- pull the inputs risk_engine.assess() needs ---
     wave_height_m: Optional[float] = (

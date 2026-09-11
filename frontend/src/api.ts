@@ -318,7 +318,8 @@ export async function transcribeVoice(
   language = "hi-IN",
 ): Promise<{ transcript: string; language: string; engine: string }> {
   const formData = new FormData();
-  formData.append("file", audioBlob, "recording.wav");
+  const ext = audioBlob.type.includes("webm") ? "webm" : audioBlob.type.includes("mp4") ? "mp4" : "wav";
+  formData.append("file", audioBlob, `recording.${ext}`);
   formData.append("language", language);
 
   const res = await fetch(`${BASE}/voice/transcribe`, {
@@ -349,3 +350,90 @@ export async function speakText(
   return res.blob();
 }
 
+// --------------------------------------------------------------------------
+// Alerts — GET /api/alerts (marine + geofence at a lat/lon)
+// --------------------------------------------------------------------------
+export interface LocationAlerts {
+  location: { name: string; latitude: number; longitude: number; state?: string | null };
+  marine_alerts: Array<{
+    type: string;
+    severity: string;
+    official: boolean;
+    headline: string;
+    detail: string;
+    source: string;
+    valid_till?: string;
+    storm?: { latitude: number; longitude: number; radius_km: number };
+  }>;
+  geofence_alerts: Array<{
+    zone_name: string;
+    zone_type: string;
+    distance_km: number;
+    inside: boolean;
+    severity: "info" | "warning" | "critical";
+    message: string;
+  }>;
+  generated_at: string;
+}
+
+export function locationAlerts(lat: number, lon: number): Promise<LocationAlerts> {
+  return json<LocationAlerts>(`${BASE}/alerts?lat=${lat}&lon=${lon}`);
+}
+
+// --------------------------------------------------------------------------
+// Quick Risk — GET /api/risk (full per-agent risk breakdown)
+// --------------------------------------------------------------------------
+export interface RiskBreakdown {
+  location: { name: string; latitude: number; longitude: number; state?: string | null };
+  valid_for: string;
+  risk: {
+    score: number;
+    category: "LOW" | "MODERATE" | "HIGH" | "EXTREME";
+    factors: Array<{ key: string; label: string; factor: number; weight: number; contribution: number; detail: string }>;
+    overrides: string[];
+    official_warning: boolean;
+    go: boolean;
+    headline: string;
+    advice: string[];
+    window: string | null;
+    sources: string[];
+    generated_at: string;
+    mode: string;
+  };
+  inputs: {
+    weather: Record<string, unknown>;
+    ocean: Record<string, unknown>;
+    alerts: Record<string, unknown>;
+    gis: Record<string, unknown>;
+  };
+}
+
+export function quickRisk(lat: number, lon: number): Promise<RiskBreakdown> {
+  return json<RiskBreakdown>(`${BASE}/risk?lat=${lat}&lon=${lon}`);
+}
+
+// --------------------------------------------------------------------------
+// Map layers — ports + PFZ GeoJSON
+// --------------------------------------------------------------------------
+export function mapPorts(): Promise<{ type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: { id: string; name: string; state: string }; geometry: { type: "Point"; coordinates: [number, number] } }> }> {
+  return json(`${BASE}/map/ports`);
+}
+
+export function mapPfz(lat: number, lon: number, count = 5): Promise<{ type: "FeatureCollection"; features: Array<{ type: "Feature"; properties: Record<string, unknown>; geometry: { type: "Point"; coordinates: [number, number] } }> }> {
+  return json(`${BASE}/map/pfz?lat=${lat}&lon=${lon}&count=${count}`);
+}
+
+// --------------------------------------------------------------------------
+// Live scenarios catalogue — GET /api/scenarios
+// --------------------------------------------------------------------------
+export interface ScenarioItem {
+  id: string;
+  n: string;
+  label: { en: string; hi: string; mr: string };
+  ask: string;
+  hint: string;
+}
+
+export function liveScenarios(): Promise<{ scenarios: ScenarioItem[] }> {
+  return json<{ scenarios: ScenarioItem[] }>(`${BASE}/scenarios`);
+}

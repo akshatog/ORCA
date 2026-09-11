@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import type { AgentEvent } from "../api";
 import type { ChatMessage, Language } from "../types";
 import { BoatGlyph, CompassMark, CourseArrow, MicGlyph, SchoolGlyph, StopGlyph } from "./glyphs";
@@ -120,6 +121,7 @@ export default function ChatPanel({
   suggestions,
   onSend,
   onLanguage,
+  onReset,
 }: {
   messages: ChatMessage[];
   busy: boolean;
@@ -128,20 +130,27 @@ export default function ChatPanel({
   suggestions: string[];
   onSend: (text: string) => void;
   onLanguage: (lang: Language) => void;
+  onReset?: () => void;
 }) {
   const [text, setText] = useState("");
-  const [listening, setListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(true);
-  const recRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setSpeechSupported(!!getRecognition());
-  }, []);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, busy, agentEvents.length]);
+  const fallbackRecognition = useCallback(() => {
+    const rec = getRecognition();
+    if (!rec) {
+      console.error("SpeechRecognition not supported in this browser.");
+      return;
+    }
+    rec.lang = SPEECH_LOCALE[language];
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e: any) => {
+      const said = e.results[0][0].transcript;
+      setText(said);
+      submit(said);
+    };
+    rec.start();
+  }, [language]);
 
   const submit = (value: string) => {
     const v = value.trim();
@@ -150,29 +159,14 @@ export default function ChatPanel({
     setText("");
   };
 
-  const toggleMic = () => {
-    if (listening) {
-      recRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    const rec = getRecognition();
-    if (!rec) return;
-    rec.lang = SPEECH_LOCALE[language];
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (e: any) => {
-      const said = e.results[0][0].transcript;
+  const { state: voiceState, toggleRecording } = useVoiceRecorder({
+    language: SPEECH_LOCALE[language],
+    onTranscript: (said) => {
       setText(said);
-      setListening(false);
       submit(said);
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    recRef.current = rec;
-    rec.start();
-    setListening(true);
-  };
+    },
+    onFallback: fallbackRecognition,
+  });
 
   return (
     <div className="panel rule-double flex h-full min-h-0 flex-col">
@@ -183,7 +177,7 @@ export default function ChatPanel({
           </div>
           <div className="mt-0.5 text-[11px] text-ink-400">{(T[language] ?? T.en).sub}</div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           {(["en", "hi", "mr"] as Language[]).map((l) => (
             <button
               key={l}
@@ -198,6 +192,17 @@ export default function ChatPanel({
               {l === "en" ? "EN" : l === "hi" ? "HI" : "MR"}
             </button>
           ))}
+          {onReset && messages.length > 0 && (
+            <button
+              onClick={onReset}
+              disabled={busy}
+              title="Start a new conversation"
+              className="ml-1 rounded-[2px] border px-2.5 py-1 font-mono text-[11px] text-ink-400 transition hover:border-ink-700 hover:text-ink-800 disabled:opacity-40"
+              style={{ borderColor: "var(--rule)" }}
+            >
+              New ↺
+            </button>
+          )}
         </div>
       </div>
 
@@ -291,18 +296,20 @@ export default function ChatPanel({
           disabled={busy}
           className="field min-w-0 flex-1"
         />
-        {speechSupported && (
+        {true && (
           <button
-            onClick={toggleMic}
+            onClick={toggleRecording}
             title="Speak"
             className={`grid h-10 w-10 shrink-0 place-items-center rounded-[2px] border transition hover:-translate-y-px ${
-              listening
+              voiceState === "recording"
                 ? "border-risk-extreme bg-risk-extreme text-paper-50"
+                : voiceState === "processing"
+                ? "border-chart-400 bg-chart-400 text-paper-50"
                 : "border-ink-900 bg-paper-50 text-ink-900 hover:bg-ink-900 hover:text-paper-50"
             }`}
-            style={listening ? { animation: "inkblink 1.2s ease-in-out infinite" } : undefined}
+            style={voiceState === "recording" || voiceState === "processing" ? { animation: "inkblink 1.2s ease-in-out infinite" } : undefined}
           >
-            {listening ? <StopGlyph size={12} /> : <MicGlyph size={17} />}
+            {voiceState === "recording" ? <StopGlyph size={12} /> : voiceState === "processing" ? <span className="animate-spin text-xs">...</span> : <MicGlyph size={17} />}
           </button>
         )}
         <button

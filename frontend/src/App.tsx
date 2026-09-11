@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
 import AgentTracePanel from "./components/AgentTrace";
+import AlertsPanel from "./components/AlertsPanel";
 import AuthorityPanel from "./components/AuthorityPanel";
 import ChatPanel from "./components/ChatPanel";
 import ConditionsStrip from "./components/ConditionsStrip";
 import FishingPanel from "./components/FishingPanel";
+import QuickRiskPanel from "./components/QuickRiskPanel";
 import {
   ChartDefs,
   CompassMark,
@@ -143,6 +145,8 @@ export default function App() {
   const [loadingPlan, setLoadingPlan] = useState(false);
 
   const [zones, setZones] = useState<ZoneFeature[]>([]);
+  const [portFeatures, setPortFeatures] = useState<Array<{ name: string; state: string; lat: number; lon: number }>>([]);
+  const [pfzGeoJson, setPfzGeoJson] = useState<Array<{ lat: number; lon: number; label?: string; confidence?: number }>>([]);
   const [mode, setMode] = useState<string>("DEMO");
   const [switching, setSwitching] = useState(false);
   const [speak, setSpeak] = useState(true);
@@ -264,6 +268,17 @@ export default function App() {
   useEffect(() => {
     api.zones().then((z) => setZones(z.features)).catch(() => setZones([]));
     api.health().then((h) => setMode(h.data_mode)).catch(() => setMode("DEMO"));
+    // Warm up live scenarios from backend (falls back to hardcoded SCENARIOS)
+    api.liveScenarios().catch(() => { /* keep hardcoded fallback */ });
+    // Fetch all port markers once at boot for the map layer
+    api.mapPorts()
+      .then((fc) => setPortFeatures(fc.features.map((f) => ({
+        name: f.properties.name,
+        state: f.properties.state,
+        lat: f.geometry.coordinates[1],
+        lon: f.geometry.coordinates[0],
+      }))))
+      .catch(() => {});
 
     // The app must be useful the moment it opens: find the fisher, then load
     // safety, grounds and warnings without them touching anything.
@@ -327,10 +342,23 @@ export default function App() {
       .then((d) => alive && setOutlook(d))
       .catch(() => alive && setOutlook(null))
       .finally(() => alive && setLoadingOutlook(false));
+    // Fetch PFZ advisory points for the new location
+    api.mapPfz(place.latitude, place.longitude, 8)
+      .then((fc) => {
+        if (!alive) return;
+        setPfzGeoJson(fc.features.map((f) => ({
+          lat: f.geometry.coordinates[1],
+          lon: f.geometry.coordinates[0],
+          label: String(f.properties.label ?? f.properties.zone_type ?? "PFZ Advisory"),
+          confidence: typeof f.properties.confidence === "number" ? f.properties.confidence : undefined,
+        })));
+      })
+      .catch(() => {}); // PFZ is supplemental — fail silently
     return () => {
       alive = false;
     };
   }, [place?.latitude, place?.longitude, language]);
+
 
   // ------------------------------------------------------------- chat
   const [agentEvents, setAgentEvents] = useState<api.AgentEvent[]>([]);
@@ -674,6 +702,8 @@ export default function App() {
               language={uiLang}
               onPickLocation={pickLocation}
               focusRank={focusRank}
+              portFeatures={portFeatures}
+              pfzGeoJson={pfzGeoJson}
             />
 
             {outlook && (
@@ -756,6 +786,14 @@ export default function App() {
                 </span>
               </div>
             )}
+            {/* Live Alerts — calls GET /api/alerts */}
+            {place && (
+              <AlertsPanel lat={place.latitude} lon={place.longitude} compact />
+            )}
+            {/* Quick Risk Breakdown — calls GET /api/risk */}
+            {place && (
+              <QuickRiskPanel lat={place.latitude} lon={place.longitude} />
+            )}
             {outlook && (
               <FishingPanel
                 data={outlook}
@@ -799,6 +837,12 @@ export default function App() {
                 suggestions={suggestions}
                 onSend={send}
                 onLanguage={(l) => setLangChoice(l)}
+                onReset={async () => {
+                  await api.resetSession(SESSION).catch(() => {});
+                  setMessages([]);
+                  setLatest(null);
+                  setAgentEvents([]);
+                }}
               />
             </div>
 
@@ -813,6 +857,7 @@ export default function App() {
                 geofence={latest?.geofence ?? []}
                 alerts={latest?.alerts ?? []}
                 language={uiLang}
+                portFeatures={portFeatures}
               />
 
               {latest?.risk && (

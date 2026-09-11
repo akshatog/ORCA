@@ -41,7 +41,12 @@ async def transcribe_endpoint(
         raise HTTPException(status_code=400, detail="Empty audio payload")
 
     try:
-        text = transcribe(audio_bytes, language_hint=language)
+        text = transcribe(
+            audio_bytes, 
+            language_hint=language,
+            filename=file.filename or "audio.wav",
+            content_type=file.content_type or "audio/wav",
+        )
         return TranscribeResponse(
             transcript=text,
             language=normalize_language_code(language),

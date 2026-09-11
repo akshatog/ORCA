@@ -46,6 +46,8 @@ def normalize_language_code(code: str) -> str:
 def transcribe(
     audio_bytes: bytes,
     language_hint: str = "hi-IN",
+    filename: str = "audio.wav",
+    content_type: str = "audio/wav",
     client: Optional[httpx.Client] = None,
 ) -> str:
     """Transcribe Indian audio speech using Sarvam Saaras model.
@@ -61,7 +63,7 @@ def transcribe(
 
     locale = normalize_language_code(language_hint)
     headers = {"api-subscription-key": key}
-    files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
+    files = {"file": (filename, audio_bytes, content_type)}
     data = {"model": "saaras:v3", "language_code": locale}
 
     http_client = client or httpx.Client(timeout=12.0)

@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as api from "../api";
+import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import type { AlertEvent, FishingOutlook, Language, SupportedLanguage, Voyage, ZoneFeature } from "../types";
 import { RATING_COLOR } from "./FishingPanel";
 import AlertBanner from "./AlertBanner";
+import AlertsPanel from "./AlertsPanel";
+import RiskTimeline from "./RiskTimeline";
 import {
   BoatGlyph,
   ChartDefs,
@@ -169,8 +172,11 @@ export default function MobileApp() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recRef = useRef<any>(null);
+  const [agentProgress, setAgentProgress] = useState<string | null>(null);
+
+  // ---- geofence state (for map tab) ----
+  const [geofenceStatus, setGeofenceStatus] = useState<"clear" | "warning" | "critical">("clear");
+  const [geofenceMsg, setGeofenceMsg] = useState<string | null>(null);
 
   // Temporary layout probe: ?debug=1 prints the widest elements on screen so
   // headless screenshots can carry their own diagnosis.
@@ -333,39 +339,56 @@ export default function MobileApp() {
     }, 400);
   };
 
-  const askVoice = () => {
-    if (listening) {
-      recRef.current?.stop();
-      setListening(false);
+  const fallbackRecognition = useCallback(() => {
+    const rec = getRecognition();
+    if (!rec) {
+      console.error("SpeechRecognition not supported in this browser.");
       return;
     }
-    const rec = getRecognition();
-    if (!rec) return;
     rec.lang = SPEECH_LOCALE[language];
     rec.interimResults = false;
+    rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
-      setListening(false);
-      sendAsk(e.results[0][0].transcript);
+      const said = e.results[0][0].transcript;
+      sendAsk(said);
     };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => setListening(false);
-    recRef.current = rec;
     rec.start();
-    setListening(true);
-  };
+  }, [language]);
+
+  const { state: voiceState, toggleRecording } = useVoiceRecorder({
+    language: SPEECH_LOCALE[language],
+    onTranscript: (said) => sendAsk(said),
+    onFallback: fallbackRecognition,
+  });
 
   const sendAsk = async (text: string) => {
     setQuestion(text);
     setAnswer(null);
+    setAgentProgress(null);
     setBusy(true);
     try {
-      const res = await api.ask({ message: text, sessionId: SESSION });
-      setAnswer(res.answer);
-      setSuggestions(res.suggestions.slice(0, 3));
-      if (res.language !== language) setLanguage(res.language);
-      speak(res.answer.split(". ").slice(0, 3).join(". "), res.language);
-    } catch {
-      setAnswer("…");
+      await api.askStream(
+        { message: text, sessionId: SESSION },
+        (e) => {
+          // Show live agent progress: "Checking weather…", "Scoring risk…"
+          if (e.type === "thinking" && e.step) {
+            setAgentProgress(e.step);
+          } else if (e.type === "agent_done") {
+            setAgentProgress(e.label ?? e.agent);
+          }
+        },
+        (res) => {
+          setAnswer(res.answer);
+          setAgentProgress(null);
+          setSuggestions(res.suggestions.slice(0, 3));
+          if (res.language !== language) setLanguage(res.language as SupportedLanguage);
+          speak(res.answer.split(". ").slice(0, 3).join(". "), res.language);
+        },
+        (_err) => {
+          setAnswer("Could not reach ORCA — is the backend running?");
+          setAgentProgress(null);
+        },
+      );
     } finally {
       setBusy(false);
     }
@@ -543,6 +566,26 @@ export default function MobileApp() {
                 </button>
               )}
 
+              {/* Live alerts from GET /api/alerts */}
+              {place && (
+                <AlertsPanel lat={place.lat} lon={place.lon} compact refreshMs={60000} />
+              )}
+
+              {/* Risk timeline mini-chart */}
+              {place && (
+                <div className="panel overflow-hidden">
+                  <div className="hd !py-2">
+                    <span className="label !text-[10px]">Risk Forecast (24h)</span>
+                  </div>
+                  <div className="px-2 pb-1">
+                    <RiskTimeline
+                      location={{ name: outlook?.location.nearest_landing_centre ?? place.name, latitude: place.lat, longitude: place.lon }}
+                      language={uiLang}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* times — big numerals, tiny labels */}
               <div className="grid grid-cols-2 gap-3">
                 {outlook.best_window && (
@@ -632,6 +675,19 @@ export default function MobileApp() {
       {/* ================= MAP ================= */}
       {tab === "map" && (
         <main className="flex-1 px-2 pb-20 pt-2">
+          {/* Geofence warning banner when near restricted zone */}
+          {geofenceStatus !== "clear" && geofenceMsg && (
+            <div
+              className={`mb-2 flex items-center gap-2 rounded-[3px] px-3 py-2 text-[12.5px] font-semibold ${
+                geofenceStatus === "critical"
+                  ? "bg-risk-extreme/10 text-risk-extreme"
+                  : "bg-risk-high/10 text-risk-high"
+              }`}
+            >
+              <WarnGlyph size={14} className="shrink-0" />
+              {geofenceMsg}
+            </div>
+          )}
           <MarineMap
             origin={
               place
@@ -645,7 +701,17 @@ export default function MobileApp() {
             routes={outlook?.routes ?? []}
             geofence={[]}
             language={uiLang}
-            onPickLocation={(lat, lon) => setPlace({ lat, lon, name: "—" })}
+            onPickLocation={(lat, lon) => {
+              const p = { lat, lon, name: "—" };
+              setPlace(p);
+              // Check geofence immediately on map click
+              api.checkPosition(lat, lon)
+                .then((pos) => {
+                  setGeofenceStatus(pos.status as any);
+                  setGeofenceMsg(pos.status !== "clear" ? pos.headline : null);
+                })
+                .catch(() => {});
+            }}
             focusRank={focusRank}
             heightPx={mapH}
           />
@@ -657,18 +723,20 @@ export default function MobileApp() {
         <main className="flex flex-1 flex-col items-center gap-4 px-4 pb-24 pt-6">
           {/* the mic IS the interface */}
           <button
-            onClick={askVoice}
+            onClick={toggleRecording}
             className={`grid h-36 w-36 place-items-center rounded-full border-[6px] transition active:scale-95 ${
-              listening
+              voiceState === "recording"
                 ? "border-risk-extreme bg-risk-extreme text-paper-50"
+                : voiceState === "processing"
+                ? "border-chart-400 bg-chart-400 text-paper-50"
                 : "border-ink-900 bg-paper-50 text-ink-900"
             }`}
-            style={listening ? { animation: "inkblink 1.1s ease-in-out infinite" } : undefined}
+            style={voiceState === "recording" || voiceState === "processing" ? { animation: "inkblink 1.1s ease-in-out infinite" } : undefined}
           >
-            {listening ? <StopGlyph size={44} /> : <MicGlyph size={64} />}
+            {voiceState === "recording" ? <StopGlyph size={44} /> : voiceState === "processing" ? <span className="animate-spin text-2xl">...</span> : <MicGlyph size={64} />}
           </button>
           <div className="font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-ink-500">
-            {listening ? t.listening : busy ? t.thinking : t.tapMic}
+            {voiceState === "recording" ? t.listening : (busy || voiceState === "processing") ? (agentProgress ? agentProgress + "…" : t.thinking) : t.tapMic}
           </div>
 
           {question && (
