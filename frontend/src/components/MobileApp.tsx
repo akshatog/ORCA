@@ -9,6 +9,8 @@ import RiskTimeline from "./RiskTimeline";
 import {
   BoatGlyph,
   ChartDefs,
+  CheckGlyph,
+  ChevronDownGlyph,
   CompassMark,
   FishGlyph,
   MapGlyph,
@@ -59,6 +61,16 @@ const T: Record<Language, Record<string, string>> = {
     askExamples: "Can I go tomorrow at 6 AM?",
     bestTimeSay: "Best time to fish is {a} to {b}.",
     returnBySay: "Be back before {t}.",
+    chooseLang: "Choose your language",
+    voiceCta: "Ask by voice",
+    moreDetails: "More details",
+    lessDetails: "Show less",
+    radius: "Search radius",
+    tapChart: "Tap the chart to check any spot",
+    legendBest: "Best",
+    legendGood: "Good",
+    legendFair: "Fair",
+    legendPoor: "Poor",
   },
   hi: {
     today: "आज",
@@ -80,6 +92,16 @@ const T: Record<Language, Record<string, string>> = {
     askExamples: "क्या मैं कल सुबह 6 बजे जा सकता हूँ?",
     bestTimeSay: "मछली पकड़ने का सबसे अच्छा समय {a} से {b} तक है।",
     returnBySay: "{t} से पहले लौट आएँ।",
+    chooseLang: "अपनी भाषा चुनें",
+    voiceCta: "बोलकर पूछें",
+    moreDetails: "पूरी जानकारी देखें",
+    lessDetails: "कम दिखाएँ",
+    radius: "खोज त्रिज्या",
+    tapChart: "किसी भी जगह जाँचने के लिए टैप करें",
+    legendBest: "सर्वश्रेष्ठ",
+    legendGood: "अच्छा",
+    legendFair: "ठीक",
+    legendPoor: "कम",
   },
   mr: {
     today: "आज",
@@ -101,8 +123,30 @@ const T: Record<Language, Record<string, string>> = {
     askExamples: "मी उद्या सकाळी ६ वाजता जाऊ का?",
     bestTimeSay: "मासेमारीसाठी सर्वोत्तम वेळ {a} ते {b}.",
     returnBySay: "{t} च्या आधी परत या.",
+    chooseLang: "तुमची भाषा निवडा",
+    voiceCta: "बोलून विचारा",
+    moreDetails: "सविस्तर पहा",
+    lessDetails: "कमी दाखवा",
+    radius: "शोध त्रिज्या",
+    tapChart: "कोणतीही जागा तपासण्यासाठी टॅप करा",
+    legendBest: "सर्वोत्तम",
+    legendGood: "चांगले",
+    legendFair: "ठीक",
+    legendPoor: "कमी",
   },
 };
+
+// First-launch language picker — each language written in its own script so a
+// fisher can recognise it by sight, not by reading English.
+const LANG_OPTIONS: { code: SupportedLanguage; native: string }[] = [
+  { code: "en", native: "English" },
+  { code: "hi", native: "हिंदी" },
+  { code: "mr", native: "मराठी" },
+  { code: "ta", native: "தமிழ்" },
+  { code: "te", native: "తెలుగు" },
+  { code: "bn", native: "বাংলা" },
+  { code: "ml", native: "മലയാളം" },
+];
 
 const SPEECH_LOCALE: Record<string, string> = {
   en: "en-IN",
@@ -148,10 +192,46 @@ function getRecognition(): any | null {
 export default function MobileApp() {
   const [language, setLanguage] = useState<SupportedLanguage>(() => {
     const l = new URLSearchParams(window.location.search).get("lang") as SupportedLanguage;
-    return l || "en";
+    if (l) return l;
+    const saved = window.localStorage.getItem("orca_lang") as SupportedLanguage | null;
+    return saved || "en";
   });
   const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
   const t = T[uiLang] ?? T.en;
+
+  // First-launch language gate: shown until the fisher has actually tapped a
+  // language on THIS gate at least once. A ?lang= arriving from a link (e.g.
+  // the desktop site's "Phone version" button carrying its own language)
+  // pre-fills the value above for convenience, but it does NOT count as a
+  // choice — only an explicit tap here, remembered in localStorage, skips
+  // the gate on future opens.
+  const [langChosen, setLangChosen] = useState<boolean>(() =>
+    Boolean(window.localStorage.getItem("orca_lang")),
+  );
+  const pickLanguage = (l: SupportedLanguage) => {
+    setLanguage(l);
+    window.localStorage.setItem("orca_lang", l);
+    setLangChosen(true);
+  };
+
+  // Header language dropdown (replaces the old row of always-visible chips —
+  // one tidy control instead of seven competing for space).
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [langMenuOpen]);
+
+  // Today tab opens in a short, simple summary; the fuller breakdown (risk
+  // timeline, ranked grounds, fuel/profit) is one tap away, not automatic.
+  const [showDetails, setShowDetails] = useState(false);
 
   const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
   const [activeVoyage, setActiveVoyage] = useState<Voyage | null>(null);
@@ -201,9 +281,11 @@ export default function MobileApp() {
     return () => window.clearTimeout(id);
   }, [outlook]);
 
-  const [mapH, setMapH] = useState(() => Math.max(320, window.innerHeight - 200));
+  // 200px was headroom for header + bottom nav alone; the info strip and tap
+  // hint added around the map need a bit more subtracted so nothing clips.
+  const [mapH, setMapH] = useState(() => Math.max(300, window.innerHeight - 270));
   useEffect(() => {
-    const onR = () => setMapH(Math.max(320, window.innerHeight - 200));
+    const onR = () => setMapH(Math.max(300, window.innerHeight - 270));
     window.addEventListener("resize", onR);
     return () => window.removeEventListener("resize", onR);
   }, []);
@@ -361,6 +443,14 @@ export default function MobileApp() {
     onFallback: fallbackRecognition,
   });
 
+  // One tap from the status screen straight into listening — no extra nav.
+  const goToVoice = () => {
+    setTab("ask");
+    if (voiceState === "idle" || voiceState === "error") {
+      toggleRecording();
+    }
+  };
+
   const sendAsk = async (text: string) => {
     setQuestion(text);
     setAnswer(null);
@@ -410,6 +500,43 @@ export default function MobileApp() {
     setTab("map");
   };
 
+  // ---------------------------------------------------------------- gate
+  if (!langChosen) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center gap-8 bg-paper-100 px-6 py-10 text-center">
+        <ChartDefs />
+        <div className="sea-drift" aria-hidden />
+        <CompassMark size={60} className="animate-stampIn text-ink-900" />
+        <div className="animate-rise" style={{ animationDelay: "80ms" }}>
+          <div className="font-display text-[26px] font-black leading-tight text-ink-900">ORCA</div>
+          <div className="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-ink-500">
+            Choose your language · अपनी भाषा चुनें
+          </div>
+        </div>
+        <div className="grid w-full max-w-[340px] grid-cols-2 gap-3">
+          {LANG_OPTIONS.map((o, i) => (
+            <button
+              key={o.code}
+              onClick={() => pickLanguage(o.code)}
+              className={`panel animate-rise flex items-center justify-center px-3 py-6 transition active:scale-[0.97] active:bg-paper-150 ${
+                language === o.code ? "border-ink-900 bg-ink-900" : ""
+              }`}
+              style={{ animationDelay: `${140 + i * 40}ms` }}
+            >
+              <span
+                className={`font-display text-[20px] font-bold ${
+                  language === o.code ? "text-paper-50" : "text-ink-900"
+                }`}
+              >
+                {o.native}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <ChartDefs />
@@ -422,10 +549,10 @@ export default function MobileApp() {
 
       {/* ---------------- slim header ---------------- */}
       <header
-        className="sticky top-0 z-[600] flex items-center gap-2.5 border-b bg-paper-100/95 px-3 py-2 backdrop-blur-sm"
-        style={{ borderColor: "var(--rule)" }}
+        className="sticky top-0 z-[600] flex items-center gap-2.5 border-b bg-paper-100/95 px-3 py-2.5 backdrop-blur-sm"
+        style={{ borderColor: "var(--rule)", boxShadow: "0 2px 10px -6px rgba(18,33,45,0.28)" }}
       >
-        <CompassMark size={30} className="shrink-0 text-ink-900" />
+        <CompassMark size={30} className="shrink-0 text-ink-900 compass-needle" />
         <div className="min-w-0">
           <div className="font-display text-[17px] font-black leading-none text-ink-900">ORCA</div>
           {place && outlook && (
@@ -434,29 +561,43 @@ export default function MobileApp() {
             </div>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-1 overflow-x-auto max-w-[200px] no-scrollbar py-0.5">
-          {([
-            ["en", "EN"],
-            ["hi", "हिं"],
-            ["mr", "मरा"],
-            ["ta", "தமி"],
-            ["te", "తెలు"],
-            ["bn", "বাংলা"],
-            ["ml", "മല"],
-          ] as const).map(([code, label]) => (
-            <button
-              key={code}
-              onClick={() => setLanguage(code as SupportedLanguage)}
-              className={`shrink-0 rounded-[2px] border px-2 py-1 font-mono text-[11px] font-bold transition ${
-                language === code
-                  ? "border-ink-900 bg-ink-900 text-paper-50"
-                  : "text-ink-400 bg-paper-50"
-              }`}
-              style={language === code ? undefined : { borderColor: "var(--rule)" }}
+
+        {/* language — one compact control instead of a row of chips */}
+        <div ref={langMenuRef} className="relative ml-auto shrink-0">
+          <button
+            onClick={() => setLangMenuOpen((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1.5 font-mono text-[12px] font-bold transition active:scale-95 ${
+              langMenuOpen ? "border-ink-900 bg-ink-900 text-paper-50" : "border-ink-900/70 bg-paper-50 text-ink-900"
+            }`}
+          >
+            {LANG_OPTIONS.find((o) => o.code === language)?.native ?? "EN"}
+            <ChevronDownGlyph
+              size={10}
+              className={`transition-transform duration-200 ${langMenuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {langMenuOpen && (
+            <div
+              className="panel animate-rise absolute right-0 top-[calc(100%+6px)] z-[650] w-40 overflow-hidden !p-1"
+              style={{ transformOrigin: "top right" }}
             >
-              {label}
-            </button>
-          ))}
+              {LANG_OPTIONS.map((o) => (
+                <button
+                  key={o.code}
+                  onClick={() => {
+                    pickLanguage(o.code);
+                    setLangMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-[2px] px-2.5 py-2 text-left font-mono text-[13px] font-semibold transition ${
+                    language === o.code ? "bg-ink-900 text-paper-50" : "text-ink-800 active:bg-paper-150"
+                  }`}
+                >
+                  {o.native}
+                  {language === o.code && <CheckGlyph size={11} />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -476,7 +617,7 @@ export default function MobileApp() {
       {tab === "today" && (
         <main className="flex-1 space-y-3 px-3 pb-24 pt-3">
           {/* Voyage status & quick toggle */}
-          <div className="panel flex items-center justify-between gap-3 bg-paper-50 p-3">
+          <div className="panel animate-rise flex items-center justify-between gap-3 bg-paper-50 p-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span
@@ -521,15 +662,23 @@ export default function MobileApp() {
             <>
               {/* the verdict — colour first, words second */}
               <div
-                className="panel rule-double flex flex-col items-center px-4 pb-4 pt-6 text-center"
+                className="panel rule-double animate-rise relative flex flex-col items-center overflow-hidden px-4 pb-4 pt-6 text-center"
                 style={{ background: `${color}14` }}
               >
+                {/* soft glow behind the ring — a little life behind the flat wash */}
                 <div
-                  className="relative grid h-32 w-32 place-items-center rounded-full border-[7px] bg-paper-50"
-                  style={{ borderColor: color, color }}
+                  aria-hidden
+                  className="pointer-events-none absolute left-1/2 top-8 h-44 w-44 -translate-x-1/2 rounded-full blur-2xl"
+                  style={{ background: `${color}33` }}
+                />
+                <div
+                  className="popin relative grid h-32 w-32 place-items-center rounded-full border-[7px] bg-paper-50"
+                  style={{ borderColor: color, color, boxShadow: `0 10px 26px -12px ${color}80` }}
                 >
                   {danger && <span className="alert-ring" style={{ borderColor: color }} />}
-                  {danger ? <WarnGlyph size={54} /> : <BoatGlyph size={58} />}
+                  <span className="svg-bob inline-flex">
+                    {danger ? <WarnGlyph size={54} /> : <BoatGlyph size={58} />}
+                  </span>
                 </div>
                 <div
                   className="mt-3 font-display text-[30px] font-black leading-none"
@@ -545,10 +694,21 @@ export default function MobileApp() {
                 {/* THE button — one tap, hear everything */}
                 <button
                   onClick={speakPlan}
-                  className="mt-4 flex w-full items-center justify-center gap-3 rounded-[3px] bg-ink-900 py-4 font-mono text-[17px] font-bold uppercase tracking-[0.14em] text-paper-50 active:translate-y-px"
+                  className="mt-4 flex w-full items-center justify-center gap-3 rounded-[3px] bg-ink-900 py-4 font-mono text-[17px] font-bold uppercase tracking-[0.14em] text-paper-50 transition active:translate-y-px active:scale-[0.98]"
+                  style={{ boxShadow: "0 10px 22px -12px rgba(18,33,45,0.55)" }}
                 >
                   {speaking ? <StopGlyph size={20} /> : <SpeakerGlyph size={24} />}
                   {speaking ? t.stop : t.listen}
+                </button>
+
+                {/* voice — one tap, straight into listening, no extra nav */}
+                <button
+                  onClick={goToVoice}
+                  className="mt-2.5 flex w-full items-center justify-center gap-3 rounded-[3px] border-[2.5px] bg-paper-50 py-3.5 font-mono text-[15px] font-bold uppercase tracking-[0.14em] transition active:translate-y-px active:scale-[0.98] active:bg-paper-150"
+                  style={{ borderColor: color, color }}
+                >
+                  <MicGlyph size={20} />
+                  {t.voiceCta}
                 </button>
               </div>
 
@@ -556,7 +716,8 @@ export default function MobileApp() {
               {outlook.safety.official_warning && (
                 <button
                   onClick={() => speak(`${t.warnSpeak}. ${outlook.advice[0]}`, language)}
-                  className="panel hatch-danger flex w-full items-center gap-3 border-risk-extreme/70 px-4 py-3 text-left"
+                  className="panel hatch-danger animate-rise flex w-full items-center gap-3 border-risk-extreme/70 px-4 py-3 text-left"
+                  style={{ animationDelay: "60ms" }}
                 >
                   <WarnGlyph size={30} className="shrink-0 text-risk-extreme" />
                   <span className="font-display text-[16px] font-bold leading-tight text-risk-extreme">
@@ -566,28 +727,8 @@ export default function MobileApp() {
                 </button>
               )}
 
-              {/* Live alerts from GET /api/alerts */}
-              {place && (
-                <AlertsPanel lat={place.lat} lon={place.lon} compact refreshMs={60000} />
-              )}
-
-              {/* Risk timeline mini-chart */}
-              {place && (
-                <div className="panel overflow-hidden">
-                  <div className="hd !py-2">
-                    <span className="label !text-[10px]">Risk Forecast (24h)</span>
-                  </div>
-                  <div className="px-2 pb-1">
-                    <RiskTimeline
-                      location={{ name: outlook?.location.nearest_landing_centre ?? place.name, latitude: place.lat, longitude: place.lon }}
-                      language={uiLang}
-                    />
-                  </div>
-                </div>
-              )}
-
               {/* times — big numerals, tiny labels */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="animate-rise grid grid-cols-2 gap-3" style={{ animationDelay: "100ms" }}>
                 {outlook.best_window && (
                   <div className="panel px-3 py-3 text-center">
                     <div className="label !text-[9px]">{t.bestTime}</div>
@@ -607,64 +748,100 @@ export default function MobileApp() {
                 )}
               </div>
 
-              {/* the grounds — tap to hear + see on the chart */}
-              <div className="panel overflow-hidden">
-                <div className="hd !py-2">
-                  <span className="label flex items-center gap-2 !text-[10px]">
-                    {t.areas} <FishGlyph size={14} className="swim text-chart-500" />
-                  </span>
-                </div>
-                <div className="divide-y" style={{ borderColor: "var(--rule-faint)" }}>
-                  {outlook.areas.slice(0, 3).map((a) => (
-                    <button
-                      key={a.id}
-                      onClick={() => speakArea(a)}
-                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition active:scale-[0.99] active:bg-paper-150"
-                    >
-                      <span
-                        className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-4 bg-paper-50 font-display text-[19px] font-extrabold text-ink-900"
-                        style={{ borderColor: RATING_COLOR[a.rating] }}
-                      >
-                        {a.rank}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[17px] font-bold text-ink-900">
-                          {Math.round(a.distance_km)} {t.km}
-                        </span>
-                        <span className="block truncate font-mono text-[11px] text-chart-700">
-                          {(a.likely_species ?? []).map((s) => s.split(" (")[0]).join(" · ")}
-                        </span>
-                      </span>
-                      <span
-                        className="sounding shrink-0 text-[26px]"
-                        style={{ color: RATING_COLOR[a.rating] }}
-                      >
-                        {a.probability}
-                        <span className="text-[14px]">%</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* one tap to expand — everything below is optional depth */}
+              <button
+                onClick={() => setShowDetails((v) => !v)}
+                className="flex w-full items-center justify-center gap-1.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wide text-chart-600 transition active:scale-95"
+              >
+                {showDetails ? t.lessDetails : t.moreDetails}
+                <ChevronDownGlyph
+                  size={11}
+                  className={`transition-transform ${showDetails ? "rotate-180" : ""}`}
+                />
+              </button>
 
-              {/* money — two numbers a fisher weighs every morning */}
-              {outlook.economics && (
-                <div className="panel grid grid-cols-2 overflow-hidden">
-                  <div className="px-3 py-3 text-center" style={{ borderTop: "2px solid transparent" }}>
-                    <div className="label !text-[9px]">{t.fuel}</div>
-                    <div className="mt-1 font-mono text-[21px] font-bold text-ink-900">
-                      ₹{outlook.economics.fuel_cost_inr.toLocaleString("en-IN")}
+              {showDetails && (
+                <div className="animate-rise space-y-3">
+                  {/* Live alerts from GET /api/alerts */}
+                  {place && (
+                    <AlertsPanel lat={place.lat} lon={place.lon} compact refreshMs={60000} />
+                  )}
+
+                  {/* Risk timeline mini-chart */}
+                  {place && (
+                    <div className="panel overflow-hidden">
+                      <div className="hd !py-2">
+                        <span className="label !text-[10px]">Risk Forecast (24h)</span>
+                      </div>
+                      <div className="px-2 pb-1">
+                        <RiskTimeline
+                          location={{ name: outlook?.location.nearest_landing_centre ?? place.name, latitude: place.lat, longitude: place.lon }}
+                          language={uiLang}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* the grounds — tap to hear + see on the chart */}
+                  <div className="panel overflow-hidden">
+                    <div className="hd !py-2">
+                      <span className="label flex items-center gap-2 !text-[10px]">
+                        {t.areas} <FishGlyph size={14} className="swim text-chart-500" />
+                      </span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: "var(--rule-faint)" }}>
+                      {outlook.areas.slice(0, 3).map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => speakArea(a)}
+                          className="flex w-full items-center gap-3 px-3 py-3 text-left transition active:scale-[0.99] active:bg-paper-150"
+                        >
+                          <span
+                            className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-4 bg-paper-50 font-display text-[19px] font-extrabold text-ink-900"
+                            style={{ borderColor: RATING_COLOR[a.rating] }}
+                          >
+                            {a.rank}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[17px] font-bold text-ink-900">
+                              {Math.round(a.distance_km)} {t.km}
+                            </span>
+                            <span className="block truncate font-mono text-[11px] text-chart-700">
+                              {(a.likely_species ?? []).map((s) => s.split(" (")[0]).join(" · ")}
+                            </span>
+                          </span>
+                          <span
+                            className="sounding shrink-0 text-[26px]"
+                            style={{ color: RATING_COLOR[a.rating] }}
+                          >
+                            {a.probability}
+                            <span className="text-[14px]">%</span>
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <div
-                    className="border-l bg-risk-low/[0.07] px-3 py-3 text-center"
-                    style={{ borderColor: "var(--rule-faint)", borderTop: "2px solid #1D7A50" }}
-                  >
-                    <div className="label !text-[9px] !text-risk-low">{t.profit}</div>
-                    <div className="mt-1 font-mono text-[21px] font-bold text-risk-low">
-                      ₹{outlook.economics.profit_inr.toLocaleString("en-IN")}
+
+                  {/* money — two numbers a fisher weighs every morning */}
+                  {outlook.economics && (
+                    <div className="panel grid grid-cols-2 overflow-hidden">
+                      <div className="px-3 py-3 text-center" style={{ borderTop: "2px solid transparent" }}>
+                        <div className="label !text-[9px]">{t.fuel}</div>
+                        <div className="mt-1 font-mono text-[21px] font-bold text-ink-900">
+                          ₹{outlook.economics.fuel_cost_inr.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                      <div
+                        className="border-l bg-risk-low/[0.07] px-3 py-3 text-center"
+                        style={{ borderColor: "var(--rule-faint)", borderTop: "2px solid #1D7A50" }}
+                      >
+                        <div className="label !text-[9px] !text-risk-low">{t.profit}</div>
+                        <div className="mt-1 font-mono text-[21px] font-bold text-risk-low">
+                          ₹{outlook.economics.profit_inr.toLocaleString("en-IN")}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </>
@@ -674,11 +851,40 @@ export default function MobileApp() {
 
       {/* ================= MAP ================= */}
       {tab === "map" && (
-        <main className="flex-1 px-2 pb-20 pt-2">
+        <main className="animate-rise flex-1 px-2 pb-20 pt-2">
+          {/* location + radius strip — gives the map a reason to be here */}
+          <div className="panel mb-2 flex items-center justify-between gap-2 px-3 py-2">
+            <div className="min-w-0">
+              <div className="label !text-[9px]">{outlook?.location.nearest_landing_centre ?? t.map}</div>
+              <div className="mt-0.5 flex items-center gap-1 font-mono text-[10.5px] text-chart-600">
+                <MapGlyph size={11} /> {t.radius}: {outlook?.radius_km ?? 100} {t.km}
+              </div>
+            </div>
+            {/* rating legend — what the coloured pins mean */}
+            <div className="flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar">
+              {(
+                [
+                  ["very_good", t.legendBest],
+                  ["good", t.legendGood],
+                  ["fair", t.legendFair],
+                  ["poor", t.legendPoor],
+                ] as const
+              ).map(([k, label]) => (
+                <span key={k} className="flex items-center gap-1 font-mono text-[9px] text-ink-500">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: RATING_COLOR[k] }}
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {/* Geofence warning banner when near restricted zone */}
           {geofenceStatus !== "clear" && geofenceMsg && (
             <div
-              className={`mb-2 flex items-center gap-2 rounded-[3px] px-3 py-2 text-[12.5px] font-semibold ${
+              className={`animate-rise mb-2 flex items-center gap-2 rounded-[3px] px-3 py-2 text-[12.5px] font-semibold ${
                 geofenceStatus === "critical"
                   ? "bg-risk-extreme/10 text-risk-extreme"
                   : "bg-risk-high/10 text-risk-high"
@@ -688,59 +894,79 @@ export default function MobileApp() {
               {geofenceMsg}
             </div>
           )}
-          <MarineMap
-            origin={
-              place
-                ? { name: outlook?.location.nearest_landing_centre ?? "—", latitude: place.lat, longitude: place.lon }
-                : null
-            }
-            zones={zones}
-            pfz={[]}
-            areas={outlook?.areas ?? []}
-            radiusKm={outlook?.radius_km ?? 100}
-            routes={outlook?.routes ?? []}
-            geofence={[]}
-            language={uiLang}
-            onPickLocation={(lat, lon) => {
-              const p = { lat, lon, name: "—" };
-              setPlace(p);
-              // Check geofence immediately on map click
-              api.checkPosition(lat, lon)
-                .then((pos) => {
-                  setGeofenceStatus(pos.status as any);
-                  setGeofenceMsg(pos.status !== "clear" ? pos.headline : null);
-                })
-                .catch(() => {});
-            }}
-            focusRank={focusRank}
-            heightPx={mapH}
-          />
+          <div className="panel overflow-hidden !p-0">
+            <MarineMap
+              origin={
+                place
+                  ? { name: outlook?.location.nearest_landing_centre ?? "—", latitude: place.lat, longitude: place.lon }
+                  : null
+              }
+              zones={zones}
+              pfz={[]}
+              areas={outlook?.areas ?? []}
+              radiusKm={outlook?.radius_km ?? 100}
+              routes={outlook?.routes ?? []}
+              geofence={[]}
+              language={uiLang}
+              onPickLocation={(lat, lon) => {
+                const p = { lat, lon, name: "—" };
+                setPlace(p);
+                // Check geofence immediately on map click
+                api.checkPosition(lat, lon)
+                  .then((pos) => {
+                    setGeofenceStatus(pos.status as any);
+                    setGeofenceMsg(pos.status !== "clear" ? pos.headline : null);
+                  })
+                  .catch(() => {});
+              }}
+              focusRank={focusRank}
+              heightPx={mapH}
+            />
+          </div>
+          <p className="mt-2 text-center font-mono text-[10.5px] text-ink-400">{t.tapChart}</p>
         </main>
       )}
 
       {/* ================= ASK ================= */}
       {tab === "ask" && (
-        <main className="flex flex-1 flex-col items-center gap-4 px-4 pb-24 pt-6">
+        <main className="animate-rise flex flex-1 flex-col items-center gap-4 px-4 pb-24 pt-6">
           {/* the mic IS the interface */}
-          <button
-            onClick={toggleRecording}
-            className={`grid h-36 w-36 place-items-center rounded-full border-[6px] transition active:scale-95 ${
-              voiceState === "recording"
-                ? "border-risk-extreme bg-risk-extreme text-paper-50"
-                : voiceState === "processing"
-                ? "border-chart-400 bg-chart-400 text-paper-50"
-                : "border-ink-900 bg-paper-50 text-ink-900"
-            }`}
-            style={voiceState === "recording" || voiceState === "processing" ? { animation: "inkblink 1.1s ease-in-out infinite" } : undefined}
-          >
-            {voiceState === "recording" ? <StopGlyph size={44} /> : voiceState === "processing" ? <span className="animate-spin text-2xl">...</span> : <MicGlyph size={64} />}
-          </button>
+          <div className="relative grid place-items-center">
+            {voiceState === "recording" && (
+              <span
+                aria-hidden
+                className="absolute h-36 w-36 rounded-full border-2 border-risk-extreme/50"
+                style={{ animation: "ping2 1.6s cubic-bezier(0,0,0.2,1) infinite" }}
+              />
+            )}
+            <button
+              onClick={toggleRecording}
+              className={`relative grid h-36 w-36 place-items-center rounded-full border-[6px] transition-all duration-200 active:scale-95 ${
+                voiceState === "recording"
+                  ? "border-risk-extreme bg-risk-extreme text-paper-50"
+                  : voiceState === "processing"
+                  ? "border-chart-400 bg-chart-400 text-paper-50"
+                  : "border-ink-900 bg-paper-50 text-ink-900"
+              }`}
+              style={{
+                boxShadow:
+                  voiceState === "recording"
+                    ? "0 12px 30px -10px rgba(175,35,24,0.55)"
+                    : "0 12px 30px -14px rgba(18,33,45,0.5)",
+                ...(voiceState === "recording" || voiceState === "processing"
+                  ? { animation: "inkblink 1.1s ease-in-out infinite" }
+                  : {}),
+              }}
+            >
+              {voiceState === "recording" ? <StopGlyph size={44} /> : voiceState === "processing" ? <span className="animate-spin text-2xl">...</span> : <MicGlyph size={64} />}
+            </button>
+          </div>
           <div className="font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-ink-500">
             {voiceState === "recording" ? t.listening : (busy || voiceState === "processing") ? (agentProgress ? agentProgress + "…" : t.thinking) : t.tapMic}
           </div>
 
           {question && (
-            <div className="w-full rounded-[3px] bg-ink-900 px-4 py-3 text-[15px] text-paper-50">
+            <div className="popin w-full rounded-[3px] bg-ink-900 px-4 py-3 text-[15px] text-paper-50">
               {question}
             </div>
           )}
@@ -758,7 +984,7 @@ export default function MobileApp() {
           {answer && (
             <button
               onClick={() => speak(answer, language)}
-              className="panel w-full px-4 py-3.5 text-left"
+              className="panel popin w-full px-4 py-3.5 text-left transition active:scale-[0.98]"
             >
               <p className="text-[16px] leading-relaxed text-ink-800">{answer}</p>
               <span className="mt-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-chart-600">
@@ -767,12 +993,12 @@ export default function MobileApp() {
             </button>
           )}
           {suggestions.length > 0 && !busy && (
-            <div className="flex w-full flex-col gap-2">
+            <div className="animate-rise flex w-full flex-col gap-2">
               {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => sendAsk(s)}
-                  className="chip w-full justify-center !py-3 !text-[14px]"
+                  className="chip w-full justify-center !py-3 !text-[14px] active:scale-[0.98]"
                 >
                   {s}
                 </button>
@@ -789,25 +1015,25 @@ export default function MobileApp() {
 
       {/* ---------------- bottom nav: three doors, never deeper ---------------- */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-[700] grid grid-cols-3 border-t bg-paper-50"
-        style={{ borderColor: "var(--rule-strong)" }}
+        className="fixed inset-x-0 bottom-0 z-[700] grid grid-cols-3 gap-1 border-t bg-paper-50/95 p-1.5 backdrop-blur-sm"
+        style={{ borderColor: "var(--rule-strong)", boxShadow: "0 -6px 18px -14px rgba(18,33,45,0.4)" }}
       >
         {(
           [
-            ["today", <BoatGlyph key="b" size={26} />],
-            ["map", <MapGlyph key="m" size={26} />],
-            ["ask", <MicGlyph key="a" size={26} />],
+            ["today", <BoatGlyph key="b" size={24} />],
+            ["map", <MapGlyph key="m" size={20} />],
+            ["ask", <MicGlyph key="a" size={24} />],
           ] as [MTab, JSX.Element][]
         ).map(([m, icon]) => (
           <button
             key={m}
             onClick={() => setTab(m)}
-            className={`flex flex-col items-center gap-1 py-2.5 transition ${
-              tab === m ? "bg-ink-900 text-paper-50" : "text-ink-500"
+            className={`flex flex-col items-center gap-1 rounded-[3px] py-2 transition-all duration-200 active:scale-95 ${
+              tab === m ? "-translate-y-0.5 bg-ink-900 text-paper-50 shadow-[0_6px_14px_-8px_rgba(18,33,45,0.6)]" : "text-ink-500"
             }`}
           >
             {icon}
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wide">{t[m]}</span>
+            <span className="font-mono text-[10.5px] font-bold uppercase tracking-wide">{t[m]}</span>
           </button>
         ))}
       </nav>
