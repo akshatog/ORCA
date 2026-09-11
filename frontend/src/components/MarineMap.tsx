@@ -340,16 +340,25 @@ export default function MarineMap({
         )
         .addTo(group);
 
-      // Render waypoint condition risk dots along sampled path
+      // Render waypoint condition risk dots along sampled path.
+      // Fields align to backend schemas.py::WaypointCondition
+      // ({lat, lon, distance_from_start_km, wave_m, wind_kmh, risk_factor, risk_level}).
+      // risk_factor is 0-1; scale to 0-100 for display/colour. All reads are
+      // guarded so a missing/partial waypoint can never throw during render.
       if (r.waypoint_conditions && r.waypoint_conditions.length > 0) {
-        r.waypoint_conditions.forEach((wp) => {
+        r.waypoint_conditions.forEach((wp, i) => {
+          if (wp?.lat == null || wp?.lon == null) return; // can't place a dot without a position
+          const riskScore = typeof wp.risk_factor === "number" ? wp.risk_factor * 100 : 0;
           const wpColor =
-            wp.segment_risk >= 50
+            riskScore >= 50
               ? "#c62828"
-              : wp.segment_risk >= 30
+              : riskScore >= 30
               ? "#f57c00"
               : "#2e7d32";
-          L.circleMarker([wp.latitude, wp.longitude], {
+          const dist = wp.distance_from_start_km?.toFixed(1) ?? "—";
+          const wave = wp.wave_m?.toFixed(1) ?? "—";
+          const wind = wp.wind_kmh?.toFixed(1) ?? "—";
+          L.circleMarker([wp.lat, wp.lon], {
             radius: 5,
             fillColor: wpColor,
             color: "#ffffff",
@@ -359,9 +368,9 @@ export default function MarineMap({
           })
             .bindPopup(
               `<div style="font-family:${MONO};font-size:11px;line-height:1.4">
-                <b>Waypoint #${wp.sample_index + 1}</b> (${wp.distance_from_origin_km.toFixed(1)} km)<br/>
-                <span style="color:${wpColor};font-weight:bold">Risk: ${Math.round(wp.segment_risk)} (${wp.risk_category})</span><br/>
-                Wave: ${wp.wave_height_m.toFixed(1)} m · Wind: ${wp.wind_speed_kmh.toFixed(1)} km/h
+                <b>Waypoint #${i + 1}</b> (${dist} km)<br/>
+                <span style="color:${wpColor};font-weight:bold">Risk: ${Math.round(riskScore)} (${wp.risk_level ?? "—"})</span><br/>
+                Wave: ${wave} m · Wind: ${wind} km/h
               </div>`
             )
             .addTo(group);

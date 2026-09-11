@@ -265,18 +265,18 @@ export function fetchPlan(params: {
   language?: SupportedLanguage | string;
   location?: { lat: number; lon: number; name?: string } | null;
 }): Promise<DecisionState> {
-  return json<DecisionState>("/plan", {
+  return json<DecisionState>(`${BASE}/plan`, {
     method: "POST",
     body: JSON.stringify(params),
   });
 }
 
 export function fetchTrace(requestId: string): Promise<TraceEntry[]> {
-  return json<TraceEntry[]>(`/trace/${encodeURIComponent(requestId)}`);
+  return json<TraceEntry[]>(`${BASE}/trace/${encodeURIComponent(requestId)}`);
 }
 
 export function fetchState(requestId: string): Promise<ORCAState> {
-  return json<ORCAState>(`/state/${encodeURIComponent(requestId)}`);
+  return json<ORCAState>(`${BASE}/state/${encodeURIComponent(requestId)}`);
 }
 
 export function startVoyage(params: {
@@ -284,18 +284,18 @@ export function startVoyage(params: {
   region_geometry?: any;
   voyage_id?: string;
 }): Promise<{ voyage_id: string; started_at: string; status: string; location: any }> {
-  return json("/voyages/start", {
+  return json(`${BASE}/voyages/start`, {
     method: "POST",
     body: JSON.stringify(params),
   });
 }
 
 export function getActiveVoyages(): Promise<Voyage[]> {
-  return json<Voyage[]>("/voyages/active");
+  return json<Voyage[]>(`${BASE}/voyages/active`);
 }
 
 export function endVoyage(voyageId: string): Promise<{ status: string; voyage_id: string }> {
-  return json(`/voyages/${encodeURIComponent(voyageId)}/end`, {
+  return json(`${BASE}/voyages/${encodeURIComponent(voyageId)}/end`, {
     method: "POST",
   });
 }
@@ -307,7 +307,7 @@ export function triggerAlert(params: {
   severity?: string;
   headline?: string;
 }): Promise<{ alerts: AlertEvent[] }> {
-  return json<{ alerts: AlertEvent[] }>("/alerts/trigger", {
+  return json<{ alerts: AlertEvent[] }>(`${BASE}/alerts/trigger`, {
     method: "POST",
     body: JSON.stringify(params),
   });
@@ -321,7 +321,7 @@ export async function transcribeVoice(
   formData.append("file", audioBlob, "recording.wav");
   formData.append("language", language);
 
-  const res = await fetch("/voice/transcribe", {
+  const res = await fetch(`${BASE}/voice/transcribe`, {
     method: "POST",
     body: formData,
   });
@@ -337,7 +337,7 @@ export async function speakText(
   language = "hi-IN",
   voiceId = "aditya",
 ): Promise<Blob> {
-  const res = await fetch("/voice/speak", {
+  const res = await fetch(`${BASE}/voice/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, language, voice_id: voiceId }),

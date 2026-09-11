@@ -166,3 +166,39 @@ Affects: `backend/tests/`.
 <!-- Add new entries above this line, newest at the bottom of the log but
      above this comment, so the file reads chronologically top-to-bottom. -->
 
+## 2026-09-11 — Full Engineering Audit
+Decision: Ran a full automated engineering audit (ORCA_AUDIT/ directory) covering API contract matrix, runtime results, endpoint inventory, and Postman findings. Findings captured permanently in docs/AUDIT_AND_STATUS.md (in-repo). ORCA_AUDIT/ itself is .gitignored (external artefact).
+Reason: Audit score 6.5/10 — v1 pipeline solid, v2 layer had real integration seams at the FE↔BE boundary. Zero tests crossed that boundary before the audit.
+Affects: docs/AUDIT_AND_STATUS.md (new file), .gitignore.
+
+## 2026-09-11 — Fix API-001: WaypointCondition field alignment
+Decision: Aligned frontend types.ts::WaypointCondition and MarineMap.tsx (lines 343-378) to the exact field names emitted by backend schemas.py::WaypointCondition. Added optional-chain guards on all .toFixed() calls.
+Reason: Backend emitted {lat, lon, wave_m, wind_kmh, risk_factor, risk_level}. Frontend read {latitude, longitude, wave_height_m, segment_risk, sample_index} — zero overlap. Every waypoint marker threw undefined.toFixed() and killed the map layer.
+Affects: frontend/src/types.ts, frontend/src/components/MarineMap.tsx.
+
+## 2026-09-11 — Fix INT-001: Dev proxy and /api aliases for v2 routes
+Decision: Added Vite proxy entries for /plan, /trace, /state, /voyages, /alerts, /voice. Registered /api/plan, /api/trace/{id}, /api/state/{id} aliases in plan.py. Standardised api.ts to use BASE="/api" for all v2 calls.
+Reason: vite.config.ts only proxied /api/*. All v2 root-path calls returned HTML 200 (SPA catch-all) in dev — silent JSON parse failure. No v2 feature was testable with dev.ps1 before this fix.
+Affects: frontend/vite.config.ts, frontend/src/api.ts, backend/app/api/plan.py.
+
+## 2026-09-11 — Fix BE-001: Route node reads real PFZ coordinates
+Decision: route_node now reads z["latitude"]/z["longitude"] directly (the actual PFZZone model_dump() keys). Picks highest-confidence zone via max(pfz_evs, key=lambda e: e.confidence). Derives target_potential from chlorophyll via _pfz_potential_from_chlorophyll() with documented INCOIS-calibrated thresholds (≥1.20→HIGH, ≥0.60→MEDIUM, <0.60→LOW). No-PFZ fallback conservatively defaults to MEDIUM not HIGH.
+Reason: Old code read z.get("coordinates", {}) which was always empty (key does not exist in PFZZone). Route always went to loc+0.15° regardless of real zone location, and economics always used HIGH potential.
+Affects: backend/app/graph/nodes.py (route_node, new _pfz_potential_from_chlorophyll helper).
+
+## 2026-09-11 — Fix DUP-001: Unify v2 risk scoring on risk_engine.assess()
+Decision: constraint_engine_node now delegates to the canonical risk_engine.assess() instead of its own inline simplified formula. GIS node now explicitly stores distance_from_shore_km, nearest_zone_km, inside_restricted_zone as Evidence records (GIS agent has no measurements{} dict so agent_result_to_evidence_list produced nothing). New _build_cyclone_alerts_for_risk_engine() bridges AdvisoryConstraint → alert-dict format.
+Reason: Three separate risk formulas (risk_engine, constraint_engine, alert_engine) produced different scores for identical sea states. /plan and /api/chat gave different numbers for the same location — undermines the core product claim. Safety floors are now guaranteed identical across both pipelines because both call the same risk_engine layer.
+Affects: backend/app/graph/nodes.py (constraint_engine_node, gis_node, new helpers).
+Do not touch: risk_engine.py safety floors — unchanged.
+
+## 2026-09-11 — Contract tests for P1/P2 fixes
+Decision: Added backend/tests/test_contract_p1_p2.py with 8 contract tests: WaypointCondition field names guard (API-001), no-phantom-fields guard, chlorophyll thresholds (6 boundary cases), route real-PFZ-coordinates spy test, fallback-when-no-PFZ, advisory conversion format, risk_engine.assess() call spy, deterministic floor preserved.
+Reason: All P1/P2 bugs lived at the FE↔BE boundary with no tests. These tests would have caught every one of them before they shipped.
+Affects: backend/tests/test_contract_p1_p2.py (new file). Total suite: 84 tests, 84 passing.
+
+## 2026-09-11 — Schema consolidation deferred to branch
+Decision: The dual-schema problem (schemas.py + schemas_v2.py) will be resolved by merging into one canonical schemas.py. This work happens in a dedicated git branch (schema-consolidation), NOT on orca-2.0. The orca-2.0 branch is frozen at 84/84 passing tests with all P1/P2 fixes as the stable checkpoint.
+Reason: Schema merge touches ~20 files across both pipelines. Doing it on the main development branch while demo is imminent is too risky. Branch + approval-gated plan (see docs/AUDIT_AND_STATUS.md) ensures regression-free merge.
+Affects: Branch strategy only. No code change in this entry.
+

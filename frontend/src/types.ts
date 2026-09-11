@@ -317,15 +317,15 @@ export interface ChatMessage {
 // --------------------------------------------------------------------------
 
 export interface WaypointCondition {
-  sample_index: number;
-  distance_from_origin_km: number;
-  latitude: number;
-  longitude: number;
-  wave_height_m: number;
-  wind_speed_kmh: number;
-  segment_risk: number;
-  risk_category: RiskCategory;
-  is_safe: boolean;
+  // Aligned to backend schemas.py::WaypointCondition (the actual wire contract).
+  lat: number;
+  lon: number;
+  distance_from_start_km: number;
+  wave_m: number;
+  wind_kmh: number;
+  /** 0-1 normalised severity. Multiply by 100 for a 0-100 display score. */
+  risk_factor: number;
+  risk_level: RiskCategory;
 }
 
 export interface Evidence_v2 {

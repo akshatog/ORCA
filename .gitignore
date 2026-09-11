@@ -31,3 +31,11 @@ Thumbs.db
 # ORCA specifics
 ORCA_TRUTH.md
 REPOSITORY_AUDIT.md
+
+# Postman workspace files — tool-specific, not source code.
+# Keep them locally for API testing but don't pollute the repo history.
+.postman/
+postman/
+
+# External audit artefacts — findings captured in docs/AUDIT_AND_STATUS.md
+ORCA_AUDIT/

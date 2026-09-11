@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from ..agents import (
     cyclone_agent,
@@ -34,6 +34,7 @@ from ..schemas_v2 import (
     agent_result_to_evidence_list,
     make_evidence,
 )
+from ..services import risk_engine
 from ..services.llm import complete_chat
 
 log = logging.getLogger(__name__)
@@ -208,7 +209,30 @@ def gis_node(state) -> Dict[str, Any]:
     loc = _get_location_obj(state)
     when = datetime.now(timezone.utc)
     res = gis_agent.run(loc, when)
+    # agent_result_to_evidence_list only converts measurements{}; GIS agent has
+    # none, so we must explicitly store the GIS scalars as Evidence records so
+    # constraint_engine_node can pass them to risk_engine.assess().
     evidences = agent_result_to_evidence_list(res)
+    now = datetime.now(timezone.utc)
+    gis_fields = {
+        "distance_from_shore_km": (res.data.get("distance_from_shore_km"), "km"),
+        "nearest_zone_km": (res.data.get("nearest_zone_km"), "km"),
+        "inside_restricted_zone": (bool(res.data.get("inside_restricted_zone", False)), "bool"),
+    }
+    for metric, (value, unit) in gis_fields.items():
+        if value is not None:
+            evidences.append(
+                make_evidence(
+                    metric=metric,
+                    value=value,
+                    unit=unit,
+                    source="ORCA_GIS",
+                    confidence=0.90,
+                    authority_level="derived",
+                    mode=get_data_mode(),
+                    observed_at=now,
+                )
+            )
     latency = int((time.perf_counter() - start) * 1000)
     return {
         "evidence": evidences,
@@ -244,65 +268,115 @@ def conflict_resolver_node(state) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 # Node 5: Constraint Engine Node (Risk + Deterministic Floors)
 # --------------------------------------------------------------------------
+def _build_cyclone_alerts_for_risk_engine(advisories: Sequence[AdvisoryConstraint]) -> List[Dict]:
+    """Convert v2 AdvisoryConstraint objects into the dict format risk_engine._alert_factor() expects."""
+    alerts = []
+    severity_map = {"SEVERE": "severe", "HIGH": "high", "MODERATE": "moderate", "LOW": "low"}
+    for adv in advisories:
+        alerts.append({
+            "severity": severity_map.get(adv.severity, "moderate"),
+            "official": True,  # all v2 AdvisoryConstraints come from official sources
+            "headline": adv.source_text or f"{adv.authority} {adv.constraint_type}",
+            "source": adv.authority,
+            "type": "fishermen_warning" if adv.constraint_type == "CAUTION" else "no_go_advisory",
+        })
+    return alerts
+
+
 def constraint_engine_node(state) -> Dict[str, Any]:
+    """Compute risk score using the canonical risk_engine.assess() — same model as the v1 chat path.
+
+    This replaces the earlier inline simplified formula (which only used wave + wind and
+    hardcoded ocean/weather/cyclone weights) with the full calibrated breakpoint-curve model,
+    ensuring /plan and /api/chat produce consistent scores for identical conditions.
+    The deterministic safety floors in risk_engine.assess() are preserved unchanged.
+    """
     start = time.perf_counter()
     now = datetime.now(timezone.utc)
 
-    # Extract readings
+    # Build a flat metric → value lookup from all collected evidence.
+    # Metric names match what each specialist agent stores in its measurements{}:
+    #   weather_node  → wave_height (ocean agent), wind_speed, rain_probability, visibility
+    #   ocean_node    → wave_height, wave_period, sst  (note: no current — ocean agent omits it)
+    #   gis_node      → distance_from_shore_km, nearest_zone_km, inside_restricted_zone  (explicit)
     ev_map: Dict[str, Any] = {e.metric: e.value for e in state.evidence}
 
-    wave = float(ev_map.get("wave_height", 1.2)) if "wave_height" in ev_map else 1.2
-    wind = float(ev_map.get("wind_speed", 20.0)) if "wind_speed" in ev_map else 20.0
-    restricted = bool(ev_map.get("inside_restricted_zone", False))
+    # --- pull the inputs risk_engine.assess() needs ---
+    wave_height_m: Optional[float] = (
+        float(ev_map["wave_height"]) if "wave_height" in ev_map else None
+    )
+    wave_period_s: Optional[float] = (
+        float(ev_map["wave_period"]) if "wave_period" in ev_map else None
+    )
+    wind_speed_kmh: Optional[float] = (
+        float(ev_map["wind_speed"]) if "wind_speed" in ev_map else None
+    )
+    rain_probability_pct: Optional[float] = (
+        float(ev_map["rain_probability"]) if "rain_probability" in ev_map else None
+    )
+    lightning: bool = bool(ev_map.get("lightning", False))
+    visibility_km: Optional[float] = (
+        float(ev_map["visibility"]) if "visibility" in ev_map else None
+    )
+    # sea_state label and current: ocean agent omits measurements for these but
+    # stores them in data{}. They are not in evidence; pass None and the engine
+    # uses its documented defaults (sea_state="moderate", current=0 → low contribution).
+    sea_state_label: Optional[str] = None
+    current_speed_ms: Optional[float] = None
 
-    weights = RISK.weights
-    norm_wave = min(1.0, wave / 4.0)
-    norm_wind = min(1.0, wind / 60.0)
-    norm_gis = 1.0 if restricted else 0.1
-    norm_ocean = 0.2
-    norm_weather = 0.15
-    norm_cyclone = 0.0
+    # GIS — explicitly stored by gis_node above
+    distance_from_shore_km: Optional[float] = (
+        float(ev_map["distance_from_shore_km"]) if "distance_from_shore_km" in ev_map else None
+    )
+    nearest_zone_km: Optional[float] = (
+        float(ev_map["nearest_zone_km"]) if "nearest_zone_km" in ev_map else None
+    )
+    inside_zone: bool = bool(ev_map.get("inside_restricted_zone", False))
 
-    raw_score = (
-        norm_wave * weights.get("wave", 0.25)
-        + norm_wind * weights.get("wind", 0.20)
-        + norm_gis * weights.get("gis", 0.10)
-        + norm_ocean * weights.get("ocean", 0.10)
-        + norm_weather * weights.get("weather", 0.10)
-        + norm_cyclone * weights.get("cyclone", 0.25)
-    ) * 100.0
+    # Cyclone / official advisories — convert AdvisoryConstraints to the alert-dict format
+    cyclone_alerts = _build_cyclone_alerts_for_risk_engine(state.advisories)
 
-    reasons: List[str] = [
-        f"Base marine condition: Wave {wave:.1f}m, Wind {wind:.0f} km/h",
-    ]
+    # Collect unique source strings for the RiskAssessment.sources list
+    sources = list(dict.fromkeys(e.source for e in state.evidence if e.source))
 
-    score = raw_score
-    official_no_go = False
+    # Delegate to the canonical risk engine (full breakpoint-curve model + deterministic floors)
+    assessment = risk_engine.assess(
+        wave_height_m=wave_height_m,
+        wave_period_s=wave_period_s,
+        wind_speed_kmh=wind_speed_kmh,
+        rain_probability_pct=rain_probability_pct,
+        lightning=lightning,
+        visibility_km=visibility_km,
+        sea_state_label=sea_state_label,
+        current_speed_ms=current_speed_ms,
+        alerts=cyclone_alerts,
+        distance_from_shore_km=distance_from_shore_km,
+        nearest_zone_km=nearest_zone_km,
+        inside_zone=inside_zone,
+        sources=sources,
+        mode=get_data_mode(),
+        generated_at=now.isoformat(),
+    )
 
-    for adv in state.advisories:
-        if adv.constraint_type == "NO_GO":
-            official_no_go = True
-            score = max(score, float(RISK.severe_warning_floor))
-            reasons.append(f"Official Warning ({adv.authority}): {adv.source_text}")
-        elif adv.constraint_type == "CAUTION":
-            score = max(score, float(RISK.fishermen_warning_floor))
-            reasons.append(f"Caution Bulletin ({adv.authority}): {adv.source_text}")
+    score = float(assessment.score)
+    official_no_go = assessment.official_warning
 
-    if wave >= RISK.wave_danger_m:
-        score = max(score, float(RISK.wave_danger_floor))
-        reasons.append(f"Safety Floor: Wave height {wave:.1f}m exceeds danger threshold ({RISK.wave_danger_m}m)")
+    # Build human-readable reasons from the engine's factor breakdown + overrides
+    reasons: List[str] = []
+    for factor in assessment.factors:
+        if factor.contribution >= 5.0:  # only report factors that meaningfully contribute
+            reasons.append(f"{factor.label}: {factor.detail} (impact +{factor.contribution:.0f})")
+    for override in assessment.overrides:
+        reasons.append(f"Safety Override: {override}")
+    if not reasons:
+        wave_str = f"{wave_height_m:.1f}m" if wave_height_m is not None else "unknown"
+        wind_str = f"{wind_speed_kmh:.0f} km/h" if wind_speed_kmh is not None else "unknown"
+        reasons.append(f"Marine conditions assessed: Wave {wave_str}, Wind {wind_str}")
 
-    if wind >= RISK.wind_danger_kmh:
-        score = max(score, float(RISK.wind_danger_floor))
-        reasons.append(f"Safety Floor: Wind speed {wind:.0f} km/h reaches gale force ({RISK.wind_danger_kmh} km/h)")
-
-    if restricted:
-        score = max(score, float(RISK.restricted_zone_floor))
-        reasons.append("Safety Floor: Vessel in vicinity of restricted zone")
-
+    # Determine operational status from the engine's category + low-confidence advisory check
     has_low_conf_advisory = any(adv.confidence < 0.70 for adv in state.advisories)
+    cat = assessment.category  # "LOW" | "MODERATE" | "HIGH" | "EXTREME"
 
-    cat = RISK.categorise(score)
     if has_low_conf_advisory and not official_no_go and score < 70:
         status = "INSUFFICIENT_EVIDENCE"
         reasons.append("Uncertain advisory parse: Confidence < 0.70 requires operator verification")
@@ -333,27 +407,83 @@ def constraint_engine_node(state) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 # Node 6: Route & Economics Node
 # --------------------------------------------------------------------------
+def _pfz_potential_from_chlorophyll(chl: Optional[float]) -> str:
+    """Map chlorophyll concentration (mg/m³) to a PFZ catch-potential label.
+
+    Thresholds calibrated to the INCOIS chlorophyll-front methodology:
+      ≥ 1.20 → HIGH   (strong nutrient upwelling, dense forage aggregation)
+      ≥ 0.60 → MEDIUM (moderate front, typical catch)
+      < 0.60 → LOW    (weak signal, opportunistic fishing only)
+    Falls back to MEDIUM (not HIGH) when chlorophyll is unavailable — avoids
+    over-optimistic economics when data is missing.
+    """
+    if chl is None:
+        return "MEDIUM"
+    if chl >= 1.20:
+        return "HIGH"
+    if chl >= 0.60:
+        return "MEDIUM"
+    return "LOW"
+
+
 def route_node(state) -> Dict[str, Any]:
+    """Select the best PFZ target from evidence, plan a route, and compute trip economics.
+
+    Fixes BE-001: reads latitude/longitude from the PFZ zone dict (the actual keys
+    emitted by pfz_agent/demo_store) instead of the non-existent 'coordinates' key.
+    Potential is derived from the zone's chlorophyll concentration.
+    """
     start = time.perf_counter()
     loc = _get_location_obj(state)
     when = datetime.now(timezone.utc)
 
-    pfz_evs = [e for e in state.evidence if e.metric == "pfz_zone" and isinstance(e.value, dict)]
-    target_potential = "HIGH"
+    # Collect all PFZ zone evidence records (each .value is a PFZZone.model_dump() dict)
+    pfz_evs = [
+        e for e in state.evidence
+        if e.metric == "pfz_zone" and isinstance(e.value, dict)
+    ]
+
+    target_dest: tuple
+    target_potential: str
+    destination_name: str
 
     if pfz_evs:
-        z = pfz_evs[0].value
-        coords = z.get("coordinates", {})
-        target_dest = (coords.get("lat", loc.latitude + 0.15), coords.get("lon", loc.longitude + 0.15))
-        target_potential = z.get("potential", "HIGH")
+        # Pick the highest-confidence zone; fall back to first if confidence is absent/equal.
+        best_ev = max(pfz_evs, key=lambda e: float(e.confidence or 0))
+        z = best_ev.value
+
+        # Read the actual coordinate keys from PFZZone.model_dump()
+        z_lat = z.get("latitude")
+        z_lon = z.get("longitude")
+
+        if z_lat is not None and z_lon is not None:
+            target_dest = (float(z_lat), float(z_lon))
+        else:
+            # PFZ record is present but coordinates missing — log a warning and use a
+            # safe 0.15° seaward offset so the route is at least valid.
+            log.warning(
+                "route_node: pfz_zone evidence missing latitude/longitude keys — "
+                "falling back to offset target. Zone keys: %s", list(z.keys())
+            )
+            target_dest = (loc.latitude + 0.15, loc.longitude + 0.15)
+
+        target_potential = _pfz_potential_from_chlorophyll(z.get("chlorophyll_mg_m3"))
+        zone_rank = z.get("rank", "?")
+        destination_name = f"PFZ #{zone_rank} (rank-{zone_rank})"
     else:
+        # No PFZ evidence at all — route to open water seaward of the port.
+        # This can happen if all candidate zones were filtered out by the safety
+        # filter in pfz_agent (e.g. all inside restricted areas).
+        log.info("route_node: no pfz_zone evidence found — routing to seaward offset")
         target_dest = (loc.latitude + 0.15, loc.longitude + 0.15)
+        target_potential = "MEDIUM"  # conservative default — not HIGH
+        destination_name = "Open Water (no PFZ identified)"
 
     route_res = route_agent.run(
         loc,
         when,
         destination=target_dest,
-        destination_name="Optimal PFZ Target",
+        destination_name=destination_name,
     )
 
     distance_km = 32.0

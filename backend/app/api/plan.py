@@ -29,6 +29,7 @@ class PlanRequest(BaseModel):
 
 
 @router.post("/plan", response_model=DecisionState)
+@router.post("/api/plan", response_model=DecisionState, include_in_schema=False)
 def plan_endpoint(req: PlanRequest, response: Response) -> DecisionState:
     """Run the ORCA 2.0 LangGraph decision pipeline for an operational or analytical query."""
     user_query = req.intent_text or req.query or "Can I safely go fishing?"
@@ -50,6 +51,7 @@ def plan_endpoint(req: PlanRequest, response: Response) -> DecisionState:
 
 
 @router.get("/trace/{request_id}")
+@router.get("/api/trace/{request_id}", include_in_schema=False)
 def trace_endpoint(request_id: str) -> List[Dict[str, Any]]:
     """Retrieve the execution trace of all LangGraph pipeline nodes for a given request."""
     state = STATE_STORE.get(request_id)
@@ -59,6 +61,7 @@ def trace_endpoint(request_id: str) -> List[Dict[str, Any]]:
 
 
 @router.get("/state/{request_id}", response_model=ORCAState)
+@router.get("/api/state/{request_id}", response_model=ORCAState, include_in_schema=False)
 def state_endpoint(request_id: str) -> ORCAState:
     """Retrieve the complete ORCAState including evidence, conflict log, and trace."""
     state = STATE_STORE.get(request_id)
