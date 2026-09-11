@@ -101,7 +101,7 @@ def fishing_outlook(
     lon: float = Query(..., description="Fisher's longitude"),
     radius_km: float = Query(MAX_RADIUS_KM, ge=5, le=MAX_RADIUS_KM),
     days: int = Query(3, ge=1, le=3, description="Today plus the next N-1 days"),
-    lang: str = Query("en", pattern="^(en|hi|mr)$"),
+    lang: str = Query("en", pattern="^(en|hi|mr|ta|te|bn|ml)$"),
 ) -> dict:
     now = now_ist()
     port = nearest_port(lat, lon)

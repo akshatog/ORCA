@@ -178,30 +178,45 @@ export default function App() {
       }
     } catch (e) {
       console.warn("Live plan fetch error:", e);
+      setError("Could not fetch safety plan — check that the backend is running.");
+      setTimeout(() => setError(null), 8000);
     } finally {
       setLoadingPlan(false);
     }
   }, [place, language]);
 
   const handleStartVoyage = async (loc: { name?: string; lat: number; lon: number }) => {
-    await api.startVoyage({
-      location: loc,
-      voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
-    });
-    const refreshed = await api.getActiveVoyages().catch(() => []);
-    setActiveVoyages(refreshed);
+    try {
+      await api.startVoyage({
+        location: loc,
+        voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
+      });
+      const refreshed = await api.getActiveVoyages().catch(() => []);
+      setActiveVoyages(refreshed);
+    } catch (e) {
+      console.error("Start voyage failed:", e);
+      setError("Could not start voyage — check connection and try again.");
+      setTimeout(() => setError(null), 8000);
+    }
   };
 
   const handleEndVoyage = async (voyageId: string) => {
-    await api.endVoyage(voyageId);
-    const refreshed = await api.getActiveVoyages().catch(() => []);
-    setActiveVoyages(refreshed);
-    if (activeAlert?.voyage_id === voyageId) {
-      setActiveAlert(null);
+    try {
+      await api.endVoyage(voyageId);
+      const refreshed = await api.getActiveVoyages().catch(() => []);
+      setActiveVoyages(refreshed);
+      if (activeAlert?.voyage_id === voyageId) {
+        setActiveAlert(null);
+      }
+    } catch (e) {
+      console.error("End voyage failed:", e);
+      setError("Could not end voyage — check connection.");
+      setTimeout(() => setError(null), 8000);
     }
   };
 
   const handleTriggerTestAlert = async (voyageId: string) => {
+    try {
     const res = await api.triggerAlert({
       voyage_id: voyageId,
       severity: "SEVERE",
@@ -220,6 +235,11 @@ export default function App() {
     });
     if (res.alerts && res.alerts.length > 0) {
       setActiveAlert(res.alerts[0]);
+    }
+    } catch (e) {
+      console.error("Trigger alert failed:", e);
+      setError("Could not trigger alert — check connection.");
+      setTimeout(() => setError(null), 8000);
     }
   };
 

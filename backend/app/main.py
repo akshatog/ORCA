@@ -7,9 +7,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -53,6 +53,17 @@ def health() -> dict:
     return {"status": "ok", "version": __version__, "data_mode": get_data_mode(),
             "agents": ["intent", "planner", "weather", "ocean", "pfz", "cyclone",
                        "gis", "risk", "route", "explanation"]}
+
+
+# INT-002: unknown /api/* paths must return JSON 404, not HTML 200.
+# This handler runs before the SPA catch-all in both dist and dev modes.
+@app.get("/api/{rest_of_path:path}", include_in_schema=False)
+async def api_not_found(rest_of_path: str, request: Request) -> JSONResponse:
+    """Catch-all for unknown /api/* paths — returns JSON 404, not the SPA index.html."""
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "API endpoint not found", "path": f"/api/{rest_of_path}"},
+    )
 
 
 # --- serve the built frontend if it exists --------------------------------
