@@ -178,6 +178,23 @@ export function ClockGlyph({ size = 14, className = "" }: G) {
   );
 }
 
+/** A drifting rain cloud — used for weather/visibility risk factors. */
+export function CloudRainGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M5.4 11.2 A3.4 3.4 0 0 1 6 4.5 A4.4 4.4 0 0 1 14.5 6.1 A3.1 3.1 0 0 1 14 12.2 H5.9 Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M7.3 14.6 L6.3 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10.8 14.6 L9.8 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+      <path d="M14.3 14.6 L13.3 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.45" />
+    </svg>
+  );
+}
+
 /** A downward chevron — used for dropdown affordances. */
 export function ChevronDownGlyph({ size = 10, className = "" }: G) {
   return (

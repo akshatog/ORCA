@@ -721,8 +721,8 @@ export default function App() {
 
       {/* ================= HOME : location + today's plan ================= */}
       {tab === "home" && (
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
-          <div className="space-y-4">
+        <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <LocationPicker current={place} language={uiLang} onPick={setPlace} />
 
             <MarineMap
@@ -808,7 +808,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="stagger-in space-y-4">
             {loadingOutlook && !outlook && (
               <div className="panel flex flex-col items-center gap-3 p-8 text-center">
                 <span className="relative grid h-9 w-9 place-items-center text-chart-600">

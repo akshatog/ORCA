@@ -1,5 +1,12 @@
+import { useState } from "react";
+import type { CSSProperties } from "react";
 import type { CatchRating, FishingOutlook, Language } from "../types";
-import { ClockGlyph, CompassMark, FishGlyph, SchoolGlyph, WarnGlyph, WaveGlyph, WindGlyph } from "./glyphs";
+import { ChevronDownGlyph, ClockGlyph, CompassMark, FishGlyph, SchoolGlyph, WarnGlyph, WaveGlyph, WindGlyph } from "./glyphs";
+
+/** Bullets beyond this many are tucked behind "Show more" — the plain-
+ * language advice list can run to 8-9 lines and was the single biggest
+ * contributor to the Today page's right column running long. */
+const ADVICE_COLLAPSE_AT = 4;
 
 /** Picks a small contextual icon + "is this the time-sensitive bit" flag
  * for a free-text advice line, so the list reads as more than identical
@@ -64,6 +71,8 @@ const T: Record<Language, Record<string, string>> = {
     profit: "Profit estimate",
     econNote: "Planning estimate — never a promise.",
     barsCaption: "Bars: chlorophyll · SST band · front · sea state · time of day",
+    showMore: "Show more",
+    showLess: "Show less",
   },
   hi: {
     advice: "आपको क्या करना चाहिए",
@@ -100,6 +109,8 @@ const T: Record<Language, Record<string, string>> = {
     profit: "अनुमानित मुनाफ़ा",
     econNote: "योजना के लिए अनुमान — कोई वादा नहीं।",
     barsCaption: "पट्टियाँ: क्लोरोफिल · तापमान · फ्रंट · समुद्र · समय",
+    showMore: "और दिखाएं",
+    showLess: "कम दिखाएं",
   },
   mr: {
     advice: "तुम्ही काय करावे",
@@ -136,6 +147,8 @@ const T: Record<Language, Record<string, string>> = {
     profit: "अंदाजे नफा",
     econNote: "नियोजनासाठी अंदाज — हमी नाही.",
     barsCaption: "पट्ट्या: क्लोरोफिल · तापमान · फ्रंट · समुद्र · वेळ",
+    showMore: "अधिक दाखवा",
+    showLess: "कमी दाखवा",
   },
 };
 
@@ -170,6 +183,11 @@ export default function FishingPanel({
   const words = RATING_WORD[language] ?? RATING_WORD.en;
   const top = data.areas.slice(0, 3);
 
+  const [showAllAdvice, setShowAllAdvice] = useState(false);
+  const adviceRest = data.advice.slice(1);
+  const hiddenAdviceCount = Math.max(0, adviceRest.length - ADVICE_COLLAPSE_AT);
+  const visibleAdvice = showAllAdvice ? adviceRest : adviceRest.slice(0, ADVICE_COLLAPSE_AT);
+
   return (
     <div className="space-y-4">
       {/* ---------- plain-language advice: the most important panel ---------- */}
@@ -190,30 +208,47 @@ export default function FishingPanel({
         )}
 
         {data.advice.length > 1 && (
-          <ul className="space-y-1 px-3.5 py-3">
-            {data.advice.slice(1).map((line, i) => {
-              const { icon, timeSensitive } = adviceLine(line);
-              const tint = timeSensitive ? "#1D7A50" : "#2a7391";
-              return (
-                <li
-                  key={i}
-                  className={`group flex items-center gap-3 rounded-[3px] px-2 py-2 text-[13.5px] leading-relaxed transition-colors hover:bg-chart-100/30 ${
-                    timeSensitive ? "bg-risk-low/[0.06]" : ""
-                  }`}
-                >
-                  <span
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-110"
-                    style={{ color: tint, background: `${tint}18` }}
+          <>
+            <ul className="space-y-1 px-3.5 py-3">
+              {visibleAdvice.map((line, i) => {
+                const { icon, timeSensitive } = adviceLine(line);
+                const tint = timeSensitive ? "#1D7A50" : "#2a7391";
+                return (
+                  <li
+                    key={i}
+                    className={`animate-rise group flex items-center gap-3 rounded-[3px] px-2 py-2 text-[13.5px] leading-relaxed transition-colors hover:bg-chart-100/30 ${
+                      timeSensitive ? "bg-risk-low/[0.06]" : ""
+                    }`}
+                    style={{ "--d": `${Math.min(i, 6) * 0.05}s` } as CSSProperties}
                   >
-                    {icon}
-                  </span>
-                  <span className={timeSensitive ? "font-semibold text-ink-900" : "text-ink-700"}>
-                    {line}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                    <span
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-110"
+                      style={{ color: tint, background: `${tint}18` }}
+                    >
+                      {icon}
+                    </span>
+                    <span className={timeSensitive ? "font-semibold text-ink-900" : "text-ink-700"}>
+                      {line}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {hiddenAdviceCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllAdvice((v) => !v)}
+                className="mx-3.5 mb-3 flex items-center gap-1.5 rounded-[2px] px-2 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-chart-600 transition-colors hover:bg-chart-100/40 hover:text-chart-700"
+              >
+                <ChevronDownGlyph
+                  size={11}
+                  className={`transition-transform duration-200 ${showAllAdvice ? "rotate-180" : ""}`}
+                />
+                {showAllAdvice ? t.showLess : `${t.showMore} (${hiddenAdviceCount})`}
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -234,20 +269,20 @@ export default function FishingPanel({
 
           <div className="px-4 py-3.5">
             <div className="space-y-2">
-              {top.map((a) => (
+              {top.map((a, i) => (
                 <button
                   key={a.id}
                   onClick={() => onSelectArea?.(a.rank)}
-                  className="group flex w-full items-center gap-3.5 rounded-[2px] border bg-paper-100 px-3 py-3 text-left transition-all duration-200 hover:-translate-y-[2px] hover:border-ink-700 hover:bg-paper-150 hover:shadow-md"
-                  style={{ borderColor: "var(--rule)" }}
+                  className="animate-rise group flex w-full items-center gap-3.5 rounded-[2px] border bg-paper-100 px-3 py-3 text-left transition-all duration-200 hover:-translate-y-[2px] hover:border-ink-700 hover:bg-paper-150 hover:shadow-md"
+                  style={{ borderColor: "var(--rule)", "--d": `${i * 0.07}s` } as CSSProperties}
                 >
                   {/* buoy badge — identical symbology to the map markers,
                       and it ripples back when the row is hovered */}
                   <div className="relative shrink-0" style={{ color: RATING_COLOR[a.rating] }}>
                     <span className="badge-ping" />
                     <div
-                      className="grid h-11 w-11 place-items-center rounded-full border-[3.5px] bg-paper-50 font-display text-[17px] font-extrabold text-ink-900 shadow-sm"
-                      style={{ borderColor: RATING_COLOR[a.rating] }}
+                      className="animate-stampIn grid h-11 w-11 place-items-center rounded-full border-[3.5px] bg-paper-50 font-display text-[17px] font-extrabold text-ink-900 shadow-sm"
+                      style={{ borderColor: RATING_COLOR[a.rating], "--d": `${i * 0.07 + 0.1}s` } as CSSProperties}
                     >
                       {a.rank}
                     </div>

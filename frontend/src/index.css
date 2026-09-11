@@ -19,6 +19,14 @@
   --rule-strong: rgba(18, 33, 45, 0.55);
   --rule-faint: rgba(18, 33, 45, 0.14);
   --chart-teal: #2a7391;
+  /* Mirrors tailwind.config.js theme.extend.colors.risk — kept as real
+     custom properties too, since several components (severity badges,
+     panel borders) need to set these dynamically via inline style rather
+     than a static Tailwind class. */
+  --risk-low: #1d7a50;
+  --risk-moderate: #a17000;
+  --risk-high: #bf4e12;
+  --risk-extreme: #af2318;
 }
 
 html {
@@ -990,6 +998,69 @@ path.radius-drift {
   background: transparent;
 }
 
+/* ---- Today-page entrance animations ----
+   Cards rise+fade in as the day's plan loads, staggered slightly per row
+   via an inline --d (delay) custom property set from the component. Kept
+   subtle and short so the page still feels calm, not gimmicky. */
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.22, 0.8, 0.25, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+/* A slightly firmer "stamped down" entrance — used for small badge-like
+   elements (rank buoys, percentage figures) that should feel placed,
+   not floated in. */
+@keyframes stampIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.86) translateY(6px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03) translateY(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-stampIn {
+  animation: stampIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  animation-delay: var(--d, 0s);
+}
+
+/* Stagger children of the Today right-hand column as a group, so the
+   alert / risk / fishing cards settle in one after another instead of
+   all snapping in at once. Delay is capped so a long list doesn't make
+   the last card wait forever. */
+.stagger-in > * {
+  animation: rise 0.5s cubic-bezier(0.22, 0.8, 0.25, 1) both;
+}
+.stagger-in > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.stagger-in > *:nth-child(2) {
+  animation-delay: 0.09s;
+}
+.stagger-in > *:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.stagger-in > *:nth-child(4) {
+  animation-delay: 0.23s;
+}
+.stagger-in > *:nth-child(n + 5) {
+  animation-delay: 0.3s;
+}
+
 /* ---- slim scrollbars: language strip + Today-page side column ----
    Thinner and low-profile compared to the default 10px scrollbar above,
    so it doesn't sit on top of panel edges/content. Stays faint until
@@ -1028,7 +1099,8 @@ path.radius-drift {
   /* Entrance animations use fill-mode:both, which would otherwise leave
      elements stuck at opacity 0 when animation is suppressed. */
   .animate-rise,
-  .animate-stampIn {
+  .animate-stampIn,
+  .stagger-in > * {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

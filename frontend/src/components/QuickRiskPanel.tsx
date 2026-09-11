@@ -3,13 +3,26 @@
  * risk breakdown: score, category, each contributing factor, and
  * any deterministic overrides (official warnings).
  *
- * Used in: App.tsx Home tab (compact) and SystemPanel (full).
+ * Used in: App.tsx Home tab and SystemPanel. There's no more a
+ * "sparse" compact variant — a headline with no supporting numbers
+ * is what read as unfinished on the Today page.
  */
 import { useEffect, useState, useCallback } from "react";
+import type { CSSProperties } from "react";
 import * as api from "../api";
 import type { RiskCategory } from "../types";
 import RiskDial, { RISK_COLOR } from "./RiskDial";
-import { WarnGlyph, LockGlyph, ClockGlyph, WaveGlyph, WindGlyph, FishGlyph } from "./glyphs";
+import {
+  ClockGlyph,
+  CloudRainGlyph,
+  CompassMark,
+  CrosshairGlyph,
+  FishGlyph,
+  LockGlyph,
+  WarnGlyph,
+  WaveGlyph,
+  WindGlyph,
+} from "./glyphs";
 
 /** Picks a small contextual icon for a free-text advice line, so the list
  * reads as more than a wall of identical bullets. Falls back to a plain
@@ -23,10 +36,33 @@ function adviceIcon(line: string) {
   return <WarnGlyph size={13} className="shrink-0" />;
 }
 
+/** One icon per backend risk-factor key (wave / cyclone / wind / weather /
+ * ocean / gis) so the factor list reads at a glance instead of as a plain
+ * table of numbers. */
+function factorIcon(key: string, size = 13) {
+  switch (key) {
+    case "wave":
+    case "ocean":
+      return <WaveGlyph size={size} className="shrink-0" />;
+    case "wind":
+      return <WindGlyph size={size} className="shrink-0" />;
+    case "weather":
+      return <CloudRainGlyph size={size} className="shrink-0" />;
+    case "cyclone":
+      return <WarnGlyph size={size} className="shrink-0" />;
+    case "gis":
+      return <CrosshairGlyph size={size} className="shrink-0" />;
+    default:
+      return <CompassMark size={size} className="shrink-0" />;
+  }
+}
+
 interface QuickRiskPanelProps {
   lat: number;
   lon: number;
-  /** Show full factor table (default false = compact headline only) */
+  /** Show the per-agent factor table. Off by default here — same as
+   * before, this card only shows the verdict + advice on the Today
+   * page; SystemPanel opts into the full breakdown explicitly. */
   full?: boolean;
 }
 
@@ -59,8 +95,9 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
 
   if (loading && !data) {
     return (
-      <div className="panel px-4 py-3 text-[12px] italic text-ink-400">
-        Computing risk…
+      <div className="panel flex items-center gap-3 px-4 py-3.5">
+        <CompassMark size={20} className="animate-[spin_5s_linear_infinite] text-chart-500 opacity-70" />
+        <span className="text-[12px] italic text-ink-400">Computing risk…</span>
       </div>
     );
   }
@@ -70,89 +107,92 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
   const risk = data.risk;
   const cat = risk.category as RiskCategory;
   const color = RISK_COLOR[cat];
+  const sortedFactors = [...(risk.factors ?? [])].sort((a, b) => b.contribution - a.contribution);
 
   return (
-    <div
-      className="panel overflow-hidden border-l-4"
-      style={{ borderLeftColor: color }}
-    >
-      <div className="hd" style={{ borderBottom: `2px solid ${color}20`, background: `${color}0a` }}>
-        <span className="label flex items-center gap-2">
-          <span
-            className="grid h-5 w-5 shrink-0 place-items-center rounded-full"
-            style={{ color, background: `${color}18` }}
-          >
-            <LockGlyph size={11} />
-          </span>
-          Risk Assessment
-        </span>
+    <div className="panel rule-double animate-rise overflow-hidden" style={{ borderTopColor: color }}>
+      {/* ---------- banner: the verdict, stated plainly, the same way the
+          advice panel below states its headline — this is what makes the
+          card read as a finished thought instead of a bare score. ---------- */}
+      <div
+        className="flex items-start gap-3 border-b px-5 py-4"
+        style={{ borderColor: "var(--rule-faint)", background: `linear-gradient(180deg, ${color}12, transparent 85%)` }}
+      >
         <span
-          className="stamp font-bold"
-          style={{ color, border: `1px solid ${color}60`, background: `${color}12` }}
+          className="popin mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full"
+          style={{ color, background: `${color}18` }}
         >
-          {CATEGORY_LABEL[cat] ?? cat}
+          <LockGlyph size={17} />
         </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="label !text-ink-400">Risk Assessment</span>
+            <span
+              className="stamp !px-1.5 !py-0.5 !text-[9px] font-bold"
+              style={{ color, border: `1px solid ${color}60`, background: `${color}12` }}
+            >
+              {CATEGORY_LABEL[cat] ?? cat}
+            </span>
+          </div>
+          <p className="mt-1 font-display text-[17px] font-semibold leading-snug text-ink-900">
+            {risk.headline || "Current conditions at this location"}
+          </p>
+        </div>
       </div>
 
-      {/* Score — the same animated instrument dial used on the Ask tab,
-          sized down for this compact card. */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-1">
-        <RiskDial score={risk.score} category={cat} size={92} />
-        <div className="min-w-0 flex-1">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-400">
-            out of 100 · risk score
-          </span>
-          {risk.headline && (
-            <div className="mt-1 text-[13.5px] font-semibold leading-snug text-ink-800">{risk.headline}</div>
+      {/* ---------- score + at-a-glance readouts ---------- */}
+      <div className="flex flex-wrap items-center gap-5 px-5 py-4">
+        <RiskDial score={risk.score} category={cat} size={104} />
+        <div className="min-w-[160px] flex-1 space-y-2">
+          <div className="font-mono text-[10px] uppercase tracking-wide text-ink-400">out of 100 · risk score</div>
+          {risk.official_warning && (
+            <div
+              className="flex items-center gap-1.5 rounded-[2px] px-2 py-1 font-mono text-[11px] font-bold text-risk-extreme"
+              style={{ background: "rgba(175,35,24,0.08)" }}
+            >
+              <WarnGlyph size={12} />
+              Official advisory active
+            </div>
+          )}
+          {risk.window && (
+            <div className="flex items-center gap-1.5 text-[12px] italic text-ink-500">
+              <ClockGlyph size={12} className="shrink-0 text-ink-400" />
+              Conditions improve: {risk.window}
+            </div>
+          )}
+          {!risk.official_warning && !risk.window && (
+            <div className="text-[12px] text-ink-400">No active overrides — model estimate only.</div>
           )}
         </div>
       </div>
 
-      <div className="px-4 pb-1">
-        {risk.official_warning && (
-          <div
-            className="mb-1.5 flex items-center gap-1.5 rounded-[2px] px-2 py-1 font-mono text-[11px] font-bold text-risk-extreme"
-            style={{ background: "rgba(175,35,24,0.08)" }}
-          >
-            <WarnGlyph size={12} />
-            Official advisory active
-          </div>
-        )}
-        {risk.window && (
-          <div className="flex items-center gap-1.5 text-[11.5px] italic text-ink-500">
-            <ClockGlyph size={12} className="shrink-0 text-ink-400" />
-            Conditions improve: {risk.window}
-          </div>
-        )}
-      </div>
-
-      {/* Factor breakdown — shown when full=true */}
-      {full && risk.factors.length > 0 && (
-        <div className="border-t px-4 pt-2 pb-3.5" style={{ borderColor: "var(--rule-faint)" }}>
-          <div className="mb-2 label">Risk Factors</div>
-          <div className="space-y-1.5">
-            {risk.factors.map((f) => {
-              const pct = Math.round(f.contribution * 100);
+      {/* ---------- factor breakdown ---------- */}
+      {full && sortedFactors.length > 0 && (
+        <div className="border-t px-5 pt-3.5 pb-4" style={{ borderColor: "var(--rule-faint)" }}>
+          <div className="mb-2.5 label">What's driving this score</div>
+          <div className="space-y-3">
+            {sortedFactors.map((f, i) => {
+              const barPct = Math.max(3, Math.min(100, Math.round((f.factor ?? f.contribution / 100) * 100)));
               return (
-                <div key={f.key}>
-                  <div className="flex items-center justify-between text-[11.5px]">
-                    <span className="text-ink-700">{f.label}</span>
-                    <span className="font-mono text-[10.5px] tabular-nums text-ink-500">
-                      {pct}%
+                <div key={f.key} className="animate-rise" style={{ "--d": `${i * 0.05}s` } as CSSProperties}>
+                  <div className="flex items-center justify-between gap-3 text-[12.5px]">
+                    <span className="flex items-center gap-2 font-semibold text-ink-700">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full" style={{ color, background: `${color}14` }}>
+                        {factorIcon(f.key)}
+                      </span>
+                      {f.label}
+                    </span>
+                    <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-500">
+                      {Math.round(f.contribution)} pts
                     </span>
                   </div>
-                  <div className="mt-0.5 h-1 rounded-full" style={{ background: "var(--rule-faint)" }}>
+                  <div className="ml-8 mt-1 h-[5px] overflow-hidden rounded-full" style={{ background: "var(--rule-faint)" }}>
                     <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, pct)}%`,
-                        background: pct > 30 ? color : "var(--chart-500)",
-                      }}
+                      className="grow-x h-full rounded-full"
+                      style={{ width: `${barPct}%`, background: barPct > 60 ? color : "var(--chart-500)" }}
                     />
                   </div>
-                  {f.detail && (
-                    <div className="text-[10.5px] text-ink-400">{f.detail}</div>
-                  )}
+                  {f.detail && <div className="ml-8 mt-1 text-[11px] leading-relaxed text-ink-400">{f.detail}</div>}
                 </div>
               );
             })}
@@ -160,14 +200,15 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
         </div>
       )}
 
-      {/* Advice */}
+      {/* ---------- advice ---------- */}
       {risk.advice?.length > 0 && (
-        <div className="border-t px-4 pt-3 pb-3.5" style={{ borderColor: "var(--rule-faint)" }}>
-          <ul className="space-y-1.5">
+        <div className="border-t px-3.5 pt-3 pb-3.5" style={{ borderColor: "var(--rule-faint)" }}>
+          <ul className="space-y-1">
             {risk.advice.map((tip, i) => (
               <li
                 key={i}
-                className="group flex items-center gap-2.5 rounded-[3px] px-2 py-1.5 text-[12px] leading-relaxed text-ink-700 transition-colors hover:bg-chart-100/35"
+                className="animate-rise group flex items-center gap-2.5 rounded-[3px] px-2 py-1.5 text-[12.5px] leading-relaxed text-ink-700 transition-colors hover:bg-chart-100/35"
+                style={{ "--d": `${0.1 + i * 0.04}s` } as CSSProperties}
               >
                 <span
                   className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-110"
@@ -183,7 +224,7 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
       )}
 
       <div
-        className="flex items-center justify-between border-t bg-paper-150/50 px-4 py-2 font-mono text-[9.5px] uppercase tracking-wide text-ink-400"
+        className="flex items-center justify-between border-t bg-paper-150/50 px-5 py-2 font-mono text-[9.5px] uppercase tracking-wide text-ink-400"
         style={{ borderColor: "var(--rule-faint)" }}
       >
         <span>{risk.sources.join(" · ")}</span>
