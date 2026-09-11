@@ -11,7 +11,7 @@ from typing import Optional
 
 from langgraph.graph import END, START, StateGraph
 
-from ..schemas_v2 import ORCAState
+from ..schemas import ORCAState
 from .state import ORCAGraphState
 from .nodes import (
     conflict_resolver_node,

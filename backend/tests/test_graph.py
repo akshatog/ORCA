@@ -1,6 +1,6 @@
 import pytest
 from app.graph import get_ascii_topology, run_plan, ORCAState
-from app.schemas_v2 import DecisionState
+from app.schemas import DecisionState
 
 
 def test_graph_ascii_topology():

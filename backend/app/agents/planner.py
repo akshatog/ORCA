@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 from ..config import get_data_mode
 from ..data.demo_store import IST, now_ist
-from ..schemas import (AgentTrace, ChatRequest, ChatResponse, Evidence,
+from ..schemas import (AgentTrace, ChatRequest, ChatResponse, EvidenceRow,
                        GeofenceAlert, Intent, Location, PFZZone, RiskAssessment,
                        RouteOption)
 from ..services.i18n import t
@@ -166,7 +166,7 @@ def handle(req: ChatRequest) -> ChatResponse:
     )
     trace.append(_trace(expl_res, "explanation"))
 
-    evidence = [Evidence(**e) for e in expl_res.data.get("evidence", [])]
+    evidence = [EvidenceRow(**e) for e in expl_res.data.get("evidence", [])]
 
     return ChatResponse(
         session_id=req.session_id,

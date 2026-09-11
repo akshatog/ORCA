@@ -21,7 +21,7 @@ from ..data.voyage_store import (
     get_voyage,
     start_voyage,
 )
-from ..schemas_v2 import AdvisoryConstraint, AlertEvent, DecisionState, Evidence, make_evidence
+from ..schemas import AdvisoryConstraint, AlertEvent, DecisionState, Evidence, make_evidence
 from ..services.alert_engine import on_evidence_change, trigger_manual_alert
 
 log = logging.getLogger(__name__)

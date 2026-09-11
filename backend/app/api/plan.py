@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from ..graph import run_plan
-from ..schemas_v2 import DecisionState, ORCAState
+from ..schemas import DecisionState, ORCAState
 
 log = logging.getLogger(__name__)
 

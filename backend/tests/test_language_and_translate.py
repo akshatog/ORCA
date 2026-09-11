@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import pytest
 from unittest.mock import MagicMock, patch
 
-from app.schemas_v2 import AdvisoryConstraint
+from app.schemas import AdvisoryConstraint
 from app.services.advisory_compiler import compile_advisory
 from app.services.i18n import detect_language, t
 from app.services.translate import translate, translate_advisory

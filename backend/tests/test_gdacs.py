@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from app.data.live_client import clear_cache, fetch_gdacs, parse_gdacs_xml
 from app.data.voyage_store import clear_voyages, start_voyage, get_voyage
-from app.schemas_v2 import DecisionState
+from app.schemas import DecisionState
 
 SAMPLE_GDACS_XML = """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:gdacs="http://www.gdacs.org" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#">

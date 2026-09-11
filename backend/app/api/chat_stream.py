@@ -14,7 +14,7 @@ from ..agents import (cyclone_agent, explanation_agent, gis_agent,
                       route_agent, weather_agent)
 from ..agents.planner import _SESSIONS, _target_datetime, _trace, AGENT_SUMMARY
 from ..config import get_data_mode
-from ..schemas import (AgentTrace, ChatRequest, ChatResponse, Evidence,
+from ..schemas import (AgentTrace, ChatRequest, ChatResponse, EvidenceRow,
                        GeofenceAlert, Intent, Location, PFZZone,
                        RiskAssessment, RouteOption)
 
@@ -188,7 +188,7 @@ def _stream(req: ChatRequest):
     })
 
     # final response
-    evidence = [Evidence(**e) for e in expl_res.data.get("evidence", [])]
+    evidence = [EvidenceRow(**e) for e in expl_res.data.get("evidence", [])]
     response = ChatResponse(
         session_id=req.session_id,
         language=intent.language,

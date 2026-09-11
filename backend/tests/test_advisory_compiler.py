@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch
 
 from app.services.advisory_compiler import compile_advisory
-from app.schemas_v2 import AdvisoryConstraint
+from app.schemas import AdvisoryConstraint
 
 
 REAL_IMD_BULLETIN = (

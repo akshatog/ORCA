@@ -8,7 +8,7 @@ from app.data.advisory_scraper import (
     scrape_incois_pfz,
 )
 from app.data.voyage_store import clear_voyages, get_voyage, start_voyage
-from app.schemas_v2 import AdvisoryConstraint, DecisionState
+from app.schemas import AdvisoryConstraint, DecisionState
 
 SAMPLE_IMD_HTML = """<!DOCTYPE html>
 <html>

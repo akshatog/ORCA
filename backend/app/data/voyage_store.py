@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
-from ..schemas_v2 import DecisionState
+from ..schemas import DecisionState
 
 log = logging.getLogger(__name__)
 

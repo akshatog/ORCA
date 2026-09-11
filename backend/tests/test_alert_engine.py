@@ -6,7 +6,7 @@ from app.data.voyage_store import (
     get_voyage,
     start_voyage,
 )
-from app.schemas_v2 import AdvisoryConstraint, DecisionState, make_evidence
+from app.schemas import AdvisoryConstraint, DecisionState, make_evidence
 from app.services.alert_engine import on_evidence_change, trigger_manual_alert
 
 

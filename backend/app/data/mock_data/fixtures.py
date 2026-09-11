@@ -3,7 +3,7 @@ All items are wrapped in Evidence_v2 or AdvisoryConstraint.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
-from app.schemas_v2 import Evidence, AdvisoryConstraint, make_evidence
+from app.schemas import Evidence, AdvisoryConstraint, make_evidence
 
 NOW = datetime.now(timezone.utc)
 

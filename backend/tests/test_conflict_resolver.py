@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import pytest
 
-from app.schemas_v2 import make_evidence
+from app.schemas import make_evidence
 from app.services.conflict_resolver import resolve_conflicts, get_selected_evidence
 
 NOW = datetime.now(timezone.utc)

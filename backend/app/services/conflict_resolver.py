@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Tuple
 
-from ..schemas_v2 import Evidence
+from ..schemas import Evidence
 
 log = logging.getLogger(__name__)
 

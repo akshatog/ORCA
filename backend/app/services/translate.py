@@ -16,7 +16,7 @@ from typing import Dict, Optional, Sequence
 
 import httpx
 
-from ..schemas_v2 import AdvisoryConstraint
+from ..schemas import AdvisoryConstraint
 from .voice import LANG_MAP, get_sarvam_key, normalize_language_code
 
 log = logging.getLogger(__name__)

@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from ..config import RISK
 from ..data.geo import haversine_km, nearest_port
 from ..data.voyage_store import Voyage, get_active_voyages, get_voyage, update_voyage_decision
-from ..schemas_v2 import AdvisoryConstraint, AlertEvent, DecisionState, Evidence
+from ..schemas import AdvisoryConstraint, AlertEvent, DecisionState, Evidence
 
 log = logging.getLogger(__name__)
 

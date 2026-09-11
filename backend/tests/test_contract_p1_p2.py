@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 from app.schemas import WaypointCondition
 from app.graph.nodes import _pfz_potential_from_chlorophyll, _build_cyclone_alerts_for_risk_engine
-from app.schemas_v2 import AdvisoryConstraint, make_evidence
+from app.schemas import AdvisoryConstraint, make_evidence
 
 FRONTEND_REQUIRED_FIELDS = {'lat','lon','distance_from_start_km','wave_m','wind_kmh','risk_factor','risk_level'}
 

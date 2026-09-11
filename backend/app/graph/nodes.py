@@ -27,7 +27,7 @@ from ..agents import (
 from ..config import RISK, TRIP_ECONOMICS, ROUTE_SCORING, get_data_mode
 from ..data.geo import DEFAULT_PORT
 from ..schemas import Location
-from ..schemas_v2 import (
+from ..schemas import (
     AdvisoryConstraint,
     DecisionState,
     Evidence,

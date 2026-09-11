@@ -291,7 +291,7 @@ def fetch_gdacs(force: bool = False) -> List[Dict[str, Any]]:
         if entries:
             try:
                 from ..services.alert_engine import on_evidence_change
-                from ..schemas_v2 import make_evidence
+                from ..schemas import make_evidence
                 from datetime import datetime, timezone
                 evidences = []
                 for e in entries:

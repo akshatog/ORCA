@@ -7,7 +7,7 @@ from app.data.voyage_store import (
     end_voyage,
     clear_voyages,
 )
-from app.schemas_v2 import DecisionState
+from app.schemas import DecisionState
 
 
 @pytest.fixture(autouse=True)

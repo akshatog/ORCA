@@ -15,7 +15,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from ..schemas_v2 import AdvisoryConstraint
+from ..schemas import AdvisoryConstraint
 from .llm import complete_chat
 
 log = logging.getLogger(__name__)

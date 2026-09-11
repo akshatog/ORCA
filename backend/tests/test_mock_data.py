@@ -6,7 +6,7 @@ from app.data.mock_data import (
     PFZ_FIXTURES,
     CYCLONE_FIXTURES,
 )
-from app.schemas_v2 import Evidence, AdvisoryConstraint
+from app.schemas import Evidence, AdvisoryConstraint
 
 
 def test_mock_data_all_cases_count_and_types():

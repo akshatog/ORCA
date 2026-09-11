@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from pydantic import ValidationError
 
-from app.schemas_v2 import (
+from app.schemas import (
     Evidence,
     make_evidence,
     AdvisoryConstraint,

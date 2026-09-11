@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from bs4 import BeautifulSoup
 
-from ..schemas_v2 import AdvisoryConstraint, Evidence, make_evidence
+from ..schemas import AdvisoryConstraint, Evidence, make_evidence
 from ..services.advisory_compiler import compile_advisory
 
 log = logging.getLogger(__name__)

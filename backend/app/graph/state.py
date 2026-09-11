@@ -5,7 +5,7 @@ import operator
 from typing import Annotated, Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
-from ..schemas_v2 import AdvisoryConstraint, DecisionState, Evidence, ORCAState
+from ..schemas import AdvisoryConstraint, DecisionState, Evidence, ORCAState
 
 
 class ORCAGraphState(BaseModel):

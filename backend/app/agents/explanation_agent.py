@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from ..config import SOURCE_LABELS
-from ..schemas import (AgentResult, Evidence, Language, Location, PFZZone,
+from ..schemas import (AgentResult, EvidenceRow, Language, Location, PFZZone,
                        RiskAssessment, RouteOption)
 from ..services.i18n import SUGGESTIONS, humanise_duration, t, verdict_key
 from .base import timed
@@ -74,15 +74,15 @@ def _short_value(key: str, weather: Dict, ocean: Dict, cyclone: Dict, gis: Dict,
 
 
 def build_evidence(weather: Dict, ocean: Dict, cyclone: Dict, gis: Dict,
-                   agents: Dict[str, AgentResult]) -> List[Evidence]:
+                   agents: Dict[str, AgentResult]) -> List[EvidenceRow]:
     """The 'tap to see the source' table behind every recommendation."""
-    rows: List[Evidence] = []
+    rows: List[EvidenceRow] = []
 
     def add(label: str, value: str, agent_key: str):
         a = agents.get(agent_key)
         if not a:
             return
-        rows.append(Evidence(label=label, value=value,
+        rows.append(EvidenceRow(label=label, value=value,
                              source=SOURCE_LABELS.get(a.source, a.source),
                              timestamp=a.timestamp, confidence=a.confidence,
                              mode=a.mode))
