@@ -222,6 +222,22 @@ export function CheckGlyph({ size = 13, className = "" }: G) {
   );
 }
 
+/** A small folding chevron — used on collapsible section headers. Points
+ * down at rest; callers rotate it 180° on `[open]`/expanded state. */
+export function ChevronGlyph({ size = 11, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M4.5 7.5 L10 13 L15.5 7.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** A fish in ink — side profile, swimming left. */
 export function FishGlyph({ size = 16, className = "" }: G) {
   return (
