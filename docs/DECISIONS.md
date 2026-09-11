@@ -202,3 +202,18 @@ Decision: The dual-schema problem (schemas.py + schemas_v2.py) will be resolved 
 Reason: Schema merge touches ~20 files across both pipelines. Doing it on the main development branch while demo is imminent is too risky. Branch + approval-gated plan (see docs/AUDIT_AND_STATUS.md) ensures regression-free merge.
 Affects: Branch strategy only. No code change in this entry.
 
+## 2026-09-11 — ARCH-001: Schema consolidation complete (schema-consolidation branch)
+Decision: Merged schemas_v2.py into schemas.py. v1 Evidence renamed EvidenceRow (6-field display row). v2 Evidence is now canonical. Evidence_v2 = Evidence alias preserved at zero cost. ORCAGraphState stays in graph/state.py (LangGraph internal, not a wire schema). 30 files updated (app/ + tests/). schemas_v2.py deleted.
+Reason: Single canonical schema eliminates the root cause of the API-001 class of field-drift bugs, removes the dual-import mental model, and makes the codebase maintainable by one person.
+Affects: backend/app/schemas.py (extended), backend/app/schemas_v2.py (deleted), 14 app files + 11 test files (import swap), graph/state.py (import swap).
+Branch: schema-consolidation (commit fee1775). Merge to orca-2.0 is next step.
+
+## 2026-09-11 — Fix P3: LANG-002, ERR-002, INT-002, FE-002/003
+Decision:
+- LANG-002: api/fishing.py lang= Query regex widened from ^(en|hi|mr)$ to ^(en|hi|mr|ta|te|bn|ml)$. Tamil, Telugu, Bengali, Malayalam fishermen no longer hit 422.
+- ERR-002: POST /api/config/mode invalid mode now raises HTTPException(422) not HTTP 200 {ok:false}.
+- INT-002: main.py gets @app.get("/api/{rest_of_path:path}") before the SPA catch-all, returns JSONResponse(404) for unknown /api/* paths.
+- FE-002/003: App.tsx — startVoyage, endVoyage, triggerAlert, fetchPlan all get try/catch → setError() + 8s auto-dismiss. Previously silent.
+Reason: All four were real user-facing failures in demo conditions. LANG-002 breaks the fishing screen for 4 of 7 supported languages. FE-002/003 means a backend outage is indistinguishable from success to the user.
+Affects: backend/app/api/fishing.py, backend/app/api/routes.py, backend/app/main.py, frontend/src/App.tsx.
+
