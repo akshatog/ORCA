@@ -990,48 +990,6 @@ path.radius-drift {
   background: transparent;
 }
 
-/* Slim variant for the panel-side scroll columns (Today's details list,
-   Ask ORCA's evidence column) — a thinner, quieter thumb that reads as
-   part of the chart-paper theme rather than a stock OS scrollbar sitting
-   on top of it. Also reserves its own gutter so content doesn't jump or
-   get overlapped when the thumb appears. */
-.scroll-slim {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(42, 115, 145, 0.45) transparent;
-  scrollbar-gutter: stable;
-}
-.scroll-slim::-webkit-scrollbar {
-  width: 6px;
-}
-.scroll-slim::-webkit-scrollbar-thumb {
-  background: rgba(42, 115, 145, 0.45);
-  border-radius: 999px;
-  border: none;
-  background-clip: padding-box;
-}
-.scroll-slim::-webkit-scrollbar-thumb:hover {
-  background: rgba(30, 95, 122, 0.7);
-}
-.scroll-slim::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Same idea, horizontal — used for the title-block language strip. */
-.scroll-x-slim {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(42, 115, 145, 0.45) transparent;
-}
-.scroll-x-slim::-webkit-scrollbar {
-  height: 4px;
-}
-.scroll-x-slim::-webkit-scrollbar-thumb {
-  background: rgba(42, 115, 145, 0.45);
-  border-radius: 999px;
-}
-.scroll-x-slim::-webkit-scrollbar-track {
-  background: transparent;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

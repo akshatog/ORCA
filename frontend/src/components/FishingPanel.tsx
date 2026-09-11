@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
 import type { CatchRating, FishingOutlook, Language } from "../types";
-import { ChevronGlyph, FishGlyph, SchoolGlyph, WarnGlyph } from "./glyphs";
+import { FishGlyph, SchoolGlyph, WarnGlyph } from "./glyphs";
 
 /** Rating colours tuned for chart paper — inky enough to read as drafted. */
 export const RATING_COLOR: Record<CatchRating, string> = {
@@ -145,21 +144,18 @@ function dayName(offset: number, t: Record<string, string>): string {
   return offset === 0 ? t.today : offset === 1 ? t.tomorrow : t.dayAfter;
 }
 
-/**
- * The headline: today's plain-language advice plus the single most
- * decision-critical number on the whole page — the best window to fish.
- * This is meant to sit ABOVE the fold, outside any scrolling region, so a
- * fisher glancing at the screen for two seconds gets the answer without
- * scrolling for it.
- */
-export function FishingHeadline({
+export default function FishingPanel({
   data,
   language = "en",
+  onSelectArea,
 }: {
   data: FishingOutlook;
   language?: Language;
+  onSelectArea?: (rank: number) => void;
 }) {
   const t = T[language] ?? T.en;
+  const words = RATING_WORD[language] ?? RATING_WORD.en;
+  const top = data.areas.slice(0, 3);
 
   return (
     <div className="space-y-4">
@@ -190,98 +186,6 @@ export function FishingHeadline({
         </div>
       </div>
 
-      {/* ---------- best time to fish: promoted out of the areas card and
-          onto the headline itself, since it was getting buried under three
-          area rows + a bar caption before a fisher ever saw it. ---------- */}
-      {data.best_window && (
-        <div className="panel overflow-hidden border-risk-low/60">
-          <div className="hd border-risk-low/25">
-            <span className="label !text-risk-low">{t.bestTime}</span>
-          </div>
-          <div className="flex items-center gap-3 px-5 py-3.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-[3px] border-risk-low/70 text-risk-low">
-              <FishGlyph size={17} className="swim" />
-            </span>
-            <div className="font-display text-[24px] font-black leading-none text-risk-low">
-              {clock12(data.best_window.from_hour)} – {clock12(data.best_window.to_hour)}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * A collapsible section for lower-priority reading (economics, the 3-day
- * outlook): closed by default so it doesn't compete for space with the
- * safety-critical content above it, but always one click away.
- */
-function Collapsible({
-  label,
-  note,
-  defaultOpen = false,
-  danger = false,
-  children,
-}: {
-  label: string;
-  note?: string;
-  defaultOpen?: boolean;
-  danger?: boolean;
-  children: ReactNode;
-}) {
-  // Only pass `open` at all when it should start open — React syncs a
-  // present `open` attribute on every re-render, which would otherwise
-  // force the section shut again the instant the outlook data refreshes,
-  // fighting the user's own click to expand it.
-  const openProp = defaultOpen ? { open: true } : {};
-
-  return (
-    <details
-      {...openProp}
-      className={`group panel overflow-hidden ${danger ? "hatch-danger border-risk-extreme/60" : ""}`}
-    >
-      <summary
-        className={`hd cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden ${
-          danger ? "border-risk-extreme/25" : ""
-        }`}
-      >
-        <span className={`label flex items-center gap-2 ${danger ? "!text-risk-extreme" : ""}`}>
-          {danger && <WarnGlyph size={13} />}
-          {label}
-        </span>
-        <span className="flex items-center gap-2">
-          {note && (
-            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-400">
-              {note}
-            </span>
-          )}
-          <ChevronGlyph
-            size={11}
-            className="shrink-0 text-ink-400 transition-transform duration-200 group-open:rotate-180"
-          />
-        </span>
-      </summary>
-      {children}
-    </details>
-  );
-}
-
-export default function FishingPanel({
-  data,
-  language = "en",
-  onSelectArea,
-}: {
-  data: FishingOutlook;
-  language?: Language;
-  onSelectArea?: (rank: number) => void;
-}) {
-  const t = T[language] ?? T.en;
-  const words = RATING_WORD[language] ?? RATING_WORD.en;
-  const top = data.areas.slice(0, 3);
-
-  return (
-    <div className="space-y-4">
       {/* ---------- best places ---------- */}
       {top.length > 0 && (
         <div className="panel overflow-hidden">
@@ -393,6 +297,15 @@ export default function FishingPanel({
             <p className="mt-2 font-mono text-[8.5px] uppercase tracking-[0.14em] text-ink-300">
               {t.barsCaption}
             </p>
+
+            {data.best_window && (
+              <div className="mt-3 border border-dashed border-risk-low/70 bg-risk-low/[0.07] px-3.5 py-2.5">
+                <div className="label !text-risk-low">{t.bestTime}</div>
+                <div className="mt-0.5 font-display text-[17px] font-bold text-risk-low">
+                  {clock12(data.best_window.from_hour)} – {clock12(data.best_window.to_hour)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -472,11 +385,15 @@ export default function FishingPanel({
         </div>
       )}
 
-      {/* ---------- what the trip is worth: honest economics ----------
-          Collapsed by default — useful, but not what a fisher needs to
-          see before the safety-critical panels above. ---------- */}
+      {/* ---------- what the trip is worth: honest economics ---------- */}
       {data.economics && data.duration?.feasible && (
-        <Collapsible label={t.econ} note={t.econNote}>
+        <div className="panel overflow-hidden">
+          <div className="hd">
+            <span className="label">{t.econ}</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-ink-400">
+              {t.econNote}
+            </span>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4">
             {[
               {
@@ -527,7 +444,7 @@ export default function FishingPanel({
           >
             {data.economics.assumptions}
           </p>
-        </Collapsible>
+        </div>
       )}
 
       {/* ---------- avoid: drawn as the chart's danger areas ---------- */}
@@ -567,11 +484,12 @@ export default function FishingPanel({
         </div>
       )}
 
-      {/* ---------- 3-day outlook ----------
-          Collapsed by default, same reasoning as economics above — it's
-          about tomorrow and the day after, not the decision for today. ---------- */}
+      {/* ---------- 3-day outlook ---------- */}
       {data.forecast.length > 1 && (
-        <Collapsible label={t.forecast}>
+        <div className="panel overflow-hidden">
+          <div className="hd">
+            <span className="label">{t.forecast}</span>
+          </div>
           <div className="grid grid-cols-3">
             {data.forecast.map((f, i) => (
               <div
@@ -608,7 +526,7 @@ export default function FishingPanel({
           >
             {data.method}
           </p>
-        </Collapsible>
+        </div>
       )}
     </div>
   );

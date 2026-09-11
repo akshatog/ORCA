@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
 import AgentTracePanel from "./components/AgentTrace";
+import AlertsPanel from "./components/AlertsPanel";
 import AuthorityPanel from "./components/AuthorityPanel";
 import ChatPanel from "./components/ChatPanel";
 import ConditionsStrip from "./components/ConditionsStrip";
-import FishingPanel, { FishingHeadline } from "./components/FishingPanel";
+import FishingPanel from "./components/FishingPanel";
+import QuickRiskPanel from "./components/QuickRiskPanel";
 import {
   ChartDefs,
   CompassMark,
@@ -28,12 +30,23 @@ import RiskCard from "./components/RiskCard";
 import { RISK_COLOR } from "./components/RiskDial";
 import SystemPanel from "./components/SystemPanel";
 import RiskTimeline from "./components/RiskTimeline";
+import EvidenceProvenancePanel from "./components/EvidenceProvenancePanel";
+import ConflictLogPanel from "./components/ConflictLogPanel";
+import DecisionPipelineVisualizer from "./components/DecisionPipelineVisualizer";
+import VoyageTracker from "./components/VoyageTracker";
+import AlertBanner from "./components/AlertBanner";
 import type {
+  AlertEvent,
   ChatMessage,
   ChatResponse,
+  DecisionState,
+  Evidence_v2,
   FishingOutlook,
   Language,
   Location,
+  SupportedLanguage,
+  TraceEntry,
+  Voyage,
   ZoneFeature,
 } from "./types";
 
@@ -41,7 +54,7 @@ const SESSION = "demo";
 const RADIUS_KM = 100;
 const DEFAULT_PORT = PORTS[0]; // Mumbai — used only if location is unavailable
 
-type AppTab = "home" | "ask" | "authority" | "system";
+type AppTab = "home" | "ask" | "authority" | "system" | "ops";
 /** "landing" is the front door; every deep link (?tab, ?demo, ?tour, ?at) skips it. */
 type Tab = AppTab | "landing";
 
@@ -60,14 +73,15 @@ const SCENARIOS: {
 ];
 
 const TAB_LABEL: Record<Language, Record<AppTab, string>> = {
-  en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System" },
-  hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली" },
-  mr: { home: "आज", ask: "ORCA ला विचारा", authority: "प्रशासन", system: "प्रणाली" },
+  en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System", ops: "Ops & Provenance" },
+  hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली", ops: "अभियान व साक्ष्य" },
+  mr: { home: "आज", ask: "ORCA ला विचारा", authority: "प्रशासन", system: "प्रणाली", ops: "मोहीम व पुरावे" },
 };
 
 /** The app chrome, in the fisher's language. */
 const UI: Record<Language, Record<string, string>> = {
   en: {
+    chartNo: "Chart №",
     dataEdition: "Data edition",
     voice: "Voice",
     lang: "Language",
@@ -81,6 +95,7 @@ const UI: Record<Language, Record<string, string>> = {
     validTill: "valid till",
   },
   hi: {
+    chartNo: "चार्ट क्र.",
     dataEdition: "डेटा संस्करण",
     voice: "आवाज़",
     lang: "भाषा",
@@ -94,6 +109,7 @@ const UI: Record<Language, Record<string, string>> = {
     validTill: "मान्य",
   },
   mr: {
+    chartNo: "तक्ता क्र.",
     dataEdition: "डेटा आवृत्ती",
     voice: "आवाज",
     lang: "भाषा",
@@ -113,10 +129,24 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [latest, setLatest] = useState<ChatResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [langChoice, setLangChoice] = useState<Language | null>(null);
-  const [detected, setDetected] = useState<Language>("en");
-  const language = langChoice ?? detected;
+  const [langChoice, setLangChoice] = useState<SupportedLanguage | null>(null);
+  const [detected, setDetected] = useState<SupportedLanguage>("en");
+  const language: SupportedLanguage = langChoice ?? detected;
+  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+
+  // ---- ORCA 2.0 Operational & Provenance state ----
+  const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
+  const [activeVoyages, setActiveVoyages] = useState<Voyage[]>([]);
+  const [planDecision, setPlanDecision] = useState<DecisionState | null>(null);
+  const [planEvidence, setPlanEvidence] = useState<Evidence_v2[]>([]);
+  const [planTrace, setPlanTrace] = useState<TraceEntry[]>([]);
+  const [planConflicts, setPlanConflicts] = useState<any[]>([]);
+  const [planRequestId, setPlanRequestId] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+
   const [zones, setZones] = useState<ZoneFeature[]>([]);
+  const [portFeatures, setPortFeatures] = useState<Array<{ name: string; state: string; lat: number; lon: number }>>([]);
+  const [pfzGeoJson, setPfzGeoJson] = useState<Array<{ lat: number; lon: number; label?: string; confidence?: number }>>([]);
   const [mode, setMode] = useState<string>("DEMO");
   const [switching, setSwitching] = useState(false);
   const [speak, setSpeak] = useState(true);
@@ -128,6 +158,106 @@ export default function App() {
   const [loadingOutlook, setLoadingOutlook] = useState(false);
   const [focusRank, setFocusRank] = useState<number | null>(null);
 
+  const handleRunPlan = useCallback(async () => {
+    setLoadingPlan(true);
+    try {
+      const p = await api.fetchPlan({
+        location: place ? { lat: place.latitude, lon: place.longitude, name: place.label } : null,
+        query: "Can I safely go fishing near here tomorrow morning?",
+        language: language,
+      });
+      setPlanDecision(p);
+      const reqId = p.request_id;
+      if (reqId) {
+        setPlanRequestId(reqId);
+        const state = await api.fetchState(reqId).catch(() => null);
+        if (state) {
+          setPlanEvidence(state.evidence || []);
+          setPlanTrace(state.trace || []);
+          setPlanConflicts(state.conflict_log || []);
+        } else {
+          const tr = await api.fetchTrace(reqId).catch(() => []);
+          setPlanTrace(tr);
+        }
+      }
+    } catch (e) {
+      console.warn("Live plan fetch error:", e);
+      setError("Could not fetch safety plan — check that the backend is running.");
+      setTimeout(() => setError(null), 8000);
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, [place, language]);
+
+  const handleStartVoyage = async (loc: { name?: string; lat: number; lon: number }) => {
+    try {
+      await api.startVoyage({
+        location: loc,
+        voyage_id: `voyage-${Date.now().toString().slice(-4)}`,
+      });
+      const refreshed = await api.getActiveVoyages().catch(() => []);
+      setActiveVoyages(refreshed);
+    } catch (e) {
+      console.error("Start voyage failed:", e);
+      setError("Could not start voyage — check connection and try again.");
+      setTimeout(() => setError(null), 8000);
+    }
+  };
+
+  const handleEndVoyage = async (voyageId: string) => {
+    try {
+      await api.endVoyage(voyageId);
+      const refreshed = await api.getActiveVoyages().catch(() => []);
+      setActiveVoyages(refreshed);
+      if (activeAlert?.voyage_id === voyageId) {
+        setActiveAlert(null);
+      }
+    } catch (e) {
+      console.error("End voyage failed:", e);
+      setError("Could not end voyage — check connection.");
+      setTimeout(() => setError(null), 8000);
+    }
+  };
+
+  const handleTriggerTestAlert = async (voyageId: string) => {
+    try {
+    const res = await api.triggerAlert({
+      voyage_id: voyageId,
+      severity: "SEVERE",
+      headline: "Rapid Storm Intensification: Cyclonic gusts detected offshore",
+      advisory: {
+        authority: "IMD",
+        constraint_type: "NO_GO",
+        named_region: place?.label || "Coastal Sector",
+        severity: "SEVERE",
+        valid_from: new Date().toISOString(),
+        valid_until: new Date(Date.now() + 86400000).toISOString(),
+        source_text: "Squally wind speed reaching 55-65 kmph gusting to 75 kmph over sea areas.",
+        source_reference: "IMD-EMERGENCY-BULLETIN",
+        confidence: 0.95,
+      },
+    });
+    if (res.alerts && res.alerts.length > 0) {
+      setActiveAlert(res.alerts[0]);
+    }
+    } catch (e) {
+      console.error("Trigger alert failed:", e);
+      setError("Could not trigger alert — check connection.");
+      setTimeout(() => setError(null), 8000);
+    }
+  };
+
+  const handleDivertSafePort = (safePort: { name: string; lat: number; lon: number }) => {
+    setPlace({
+      latitude: safePort.lat,
+      longitude: safePort.lon,
+      label: safePort.name,
+      source: "map",
+    });
+    setActiveAlert(null);
+    setTab("home");
+  };
+
   // ---- guided tour ----
   const [tourOn, setTourOn] = useState(false);
   const [tourStep, setTourStep] = useState(0);
@@ -138,6 +268,17 @@ export default function App() {
   useEffect(() => {
     api.zones().then((z) => setZones(z.features)).catch(() => setZones([]));
     api.health().then((h) => setMode(h.data_mode)).catch(() => setMode("DEMO"));
+    // Warm up live scenarios from backend (falls back to hardcoded SCENARIOS)
+    api.liveScenarios().catch(() => { /* keep hardcoded fallback */ });
+    // Fetch all port markers once at boot for the map layer
+    api.mapPorts()
+      .then((fc) => setPortFeatures(fc.features.map((f) => ({
+        name: f.properties.name,
+        state: f.properties.state,
+        lat: f.geometry.coordinates[1],
+        lon: f.geometry.coordinates[0],
+      }))))
+      .catch(() => {});
 
     // The app must be useful the moment it opens: find the fisher, then load
     // safety, grounds and warnings without them touching anything.
@@ -201,53 +342,87 @@ export default function App() {
       .then((d) => alive && setOutlook(d))
       .catch(() => alive && setOutlook(null))
       .finally(() => alive && setLoadingOutlook(false));
+    // Fetch PFZ advisory points for the new location
+    api.mapPfz(place.latitude, place.longitude, 8)
+      .then((fc) => {
+        if (!alive) return;
+        setPfzGeoJson(fc.features.map((f) => ({
+          lat: f.geometry.coordinates[1],
+          lon: f.geometry.coordinates[0],
+          label: String(f.properties.label ?? f.properties.zone_type ?? "PFZ Advisory"),
+          confidence: typeof f.properties.confidence === "number" ? f.properties.confidence : undefined,
+        })));
+      })
+      .catch(() => {}); // PFZ is supplemental — fail silently
     return () => {
       alive = false;
     };
   }, [place?.latitude, place?.longitude, language]);
 
+
   // ------------------------------------------------------------- chat
+  const [agentEvents, setAgentEvents] = useState<api.AgentEvent[]>([]);
+
   const send = async (text: string) => {
     setError(null);
     setBusy(true);
+    setAgentEvents([]);
     setMessages((m) => [...m, { id: `${Date.now()}-u`, role: "user", text }]);
-    try {
-      const res = await api.ask({
+    await api.askStream(
+      {
         message: text,
         language: langChoice ?? undefined,
         sessionId: SESSION,
-      });
-      setLatest(res);
-      setDetected(res.language);
-      setMode(res.mode);
-      setMessages((m) => [
-        ...m,
-        { id: `${Date.now()}-o`, role: "orca", text: res.answer, response: res },
-      ]);
-      if (speak) {
-        try {
-          const u = new SpeechSynthesisUtterance(res.answer.split(". ").slice(0, 2).join(". "));
-          u.lang = res.language === "mr" ? "mr-IN" : res.language === "hi" ? "hi-IN" : "en-IN";
-          u.rate = 0.98;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(u);
-        } catch {
-          /* TTS unavailable — non-fatal */
-        }
-      }
-    } catch (e) {
-      setError(String(e));
-      setMessages((m) => [
-        ...m,
-        {
-          id: `${Date.now()}-e`,
-          role: "orca",
-          text: "I could not reach the ORCA backend. Is it running on port 8000?",
-        },
-      ]);
-    } finally {
-      setBusy(false);
-    }
+      },
+      (e) => {
+        setAgentEvents((prev) => {
+          // replace last "thinking" if new thinking arrives, otherwise append
+          if (e.type === "thinking") {
+            return [...prev.filter((x) => x.type !== "thinking"), e];
+          }
+          return [...prev.filter((x) => !(x.type === "thinking" && x.agent === e.agent)), e];
+        });
+      },
+      (res) => {
+        // Keep the thinking panel visible for at least 1.5s so judges can read
+        // the agent names — backend hits demo data in ~1s which is too fast.
+        setTimeout(() => {
+          setLatest(res);
+          setDetected(res.language);
+          setMode(res.mode);
+          setAgentEvents([]);
+          setMessages((m) => [
+            ...m,
+            { id: `${Date.now()}-o`, role: "orca", text: res.answer, response: res },
+          ]);
+          if (speak) {
+            try {
+              const u = new SpeechSynthesisUtterance(res.answer.split(". ").slice(0, 2).join(". "));
+              u.lang = res.language === "mr" ? "mr-IN" : res.language === "hi" ? "hi-IN" : "en-IN";
+              u.rate = 0.98;
+              window.speechSynthesis.cancel();
+              window.speechSynthesis.speak(u);
+            } catch {
+              /* TTS unavailable */
+            }
+          }
+          setBusy(false);
+        }, 1500);
+      },
+      (err) => {
+        setError(err);
+        setMessages((m) => [
+          ...m,
+          {
+            id: `${Date.now()}-e`,
+            role: "orca",
+            text: "I could not reach the ORCA backend. Is it running on port 8000?",
+          },
+        ]);
+        setAgentEvents([]);
+        setBusy(false);
+      },
+    );
   };
 
   const runScenario = async (ask: string) => {
@@ -321,14 +496,15 @@ export default function App() {
       setSwitching(false);
     }
   };
+  const cycleMode = toggleMode;
 
   const pickLocation = useCallback((lat: number, lon: number) => {
     setPlace({ latitude: lat, longitude: lon, label: "Selected point", source: "map" });
   }, []);
 
   const suggestions = useMemo(() => latest?.suggestions ?? [], [latest]);
-  const tabLabels = TAB_LABEL[language] ?? TAB_LABEL.en;
-  const ui = UI[language] ?? UI.en;
+  const tabLabels = TAB_LABEL[uiLang] ?? TAB_LABEL.en;
+  const ui = UI[uiLang] ?? UI.en;
 
   const homeOrigin: Location | null = place
     ? {
@@ -345,8 +521,8 @@ export default function App() {
         <ChartDefs />
         <Landing
           mode={mode}
-          language={language}
-          onLanguage={setLangChoice}
+          language={uiLang}
+          onLanguage={(l) => setLangChoice(l)}
           onEnter={setTab}
           onTour={startTour}
           onScenario={runScenario}
@@ -383,17 +559,23 @@ export default function App() {
 
           {/* title-block cells */}
           <div className="ml-auto flex flex-wrap items-stretch">
+            <div className="hidden flex-col justify-center border-l px-5 py-3 sm:flex" style={{ borderColor: "var(--rule-faint)" }}>
+              <span className="label">{ui.chartNo}</span>
+              <span className="mt-1 font-mono text-[13px] font-bold text-ink-800">SIH26176</span>
+            </div>
+
+            {/* mode switch */}
             <button
-              onClick={toggleMode}
+              onClick={cycleMode}
               disabled={switching}
-              title="Switch between cached demo data and live public providers"
+              title={`Running on ${mode} data — click to switch`}
               className="group flex flex-col justify-center border-l px-5 py-3 text-left transition hover:bg-paper-150 disabled:opacity-50"
               style={{ borderColor: "var(--rule-faint)" }}
             >
               <span className="label">{ui.dataEdition}</span>
               <span
                 className={`mt-1 font-mono text-[13px] font-bold ${
-                  mode === "LIVE" ? "text-risk-low" : "text-risk-high"
+                  mode === "LIVE" ? "text-risk-low" : "text-chart-600"
                 }`}
               >
                 {switching ? "…" : mode}
@@ -415,26 +597,31 @@ export default function App() {
             </button>
 
             <div
-              className="flex max-w-[168px] flex-col justify-center border-l px-4 py-3"
+              className="flex flex-col justify-center border-l px-4 py-3"
               style={{ borderColor: "var(--rule-faint)" }}
             >
               <span className="label">{ui.lang}</span>
-              {/* Horizontally-scrollable strip, not a wrapping row — keeps this
-                  title-block cell a fixed height as more languages get added,
-                  instead of the header growing taller every time. */}
-              <span className="scroll-x-slim mt-1 flex gap-1 overflow-x-auto pb-0.5">
-                {(["en", "hi", "mr"] as Language[]).map((l) => (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {([
+                  { code: "en", label: "EN" },
+                  { code: "hi", label: "हिं" },
+                  { code: "mr", label: "मरा" },
+                  { code: "ta", label: "தமி" },
+                  { code: "te", label: "తెలు" },
+                  { code: "bn", label: "বাং" },
+                  { code: "ml", label: "മല" },
+                ] as { code: SupportedLanguage; label: string }[]).map((l) => (
                   <button
-                    key={l}
-                    onClick={() => setLangChoice(l)}
-                    className={`shrink-0 rounded-[2px] border px-1.5 py-0.5 font-mono text-[10.5px] font-bold transition ${
-                      language === l
+                    key={l.code}
+                    onClick={() => setLangChoice(l.code)}
+                    className={`rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px] font-bold transition ${
+                      language === l.code
                         ? "border-ink-900 bg-ink-900 text-paper-50"
                         : "text-ink-400 hover:text-ink-800"
                     }`}
-                    style={language === l ? undefined : { borderColor: "var(--rule)" }}
+                    style={language === l.code ? undefined : { borderColor: "var(--rule)" }}
                   >
-                    {l === "en" ? "EN" : l === "hi" ? "हिं" : "मरा"}
+                    {l.label}
                   </button>
                 ))}
               </span>
@@ -454,7 +641,7 @@ export default function App() {
           className="flex items-end gap-6 border-t px-5"
           style={{ borderColor: "var(--rule-faint)" }}
         >
-          {(["home", "ask", "authority", "system"] as AppTab[]).map((x) => (
+          {(["home", "ask", "authority", "system", "ops"] as AppTab[]).map((x) => (
             <button
               key={x}
               onClick={() => setTab(x)}
@@ -469,10 +656,17 @@ export default function App() {
         </nav>
       </header>
 
+      <AlertBanner
+        alert={activeAlert}
+        onDismiss={() => setActiveAlert(null)}
+        onDivert={handleDivertSafePort}
+        language={uiLang}
+      />
+
       {tourOn && (
         <GuidedTour
           step={tourStep}
-          language={language}
+          language={uiLang}
           paused={tourPaused}
           onPause={() => setTourPaused((p) => !p)}
           onNext={() => gotoStep(tourStep + 1)}
@@ -495,7 +689,7 @@ export default function App() {
       {tab === "home" && (
         <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
           <div className="space-y-4">
-            <LocationPicker current={place} language={language} onPick={setPlace} />
+            <LocationPicker current={place} language={uiLang} onPick={setPlace} />
 
             <MarineMap
               origin={homeOrigin}
@@ -505,9 +699,11 @@ export default function App() {
               radiusKm={outlook?.radius_km ?? RADIUS_KM}
               routes={outlook?.routes ?? []}
               geofence={[]}
-              language={language}
+              language={uiLang}
               onPickLocation={pickLocation}
               focusRank={focusRank}
+              portFeatures={portFeatures}
+              pfzGeoJson={pfzGeoJson}
             />
 
             {outlook && (
@@ -571,14 +767,7 @@ export default function App() {
             )}
           </div>
 
-          {/* Right column is now two tiers: a fixed, never-scrolling headline
-              (today's advice + the best time to fish — the two things a
-              fisher must see first) sitting above a separately-scrolling
-              details region for everything else (best places, trip plan,
-              economics, warnings, 3-day outlook). Before, all of this was
-              one long scroll and the best-time card was buried near the
-              bottom of it. */}
-          <div className="flex min-h-0 flex-col gap-4 lg:h-[calc(100vh-235px)]">
+          <div className="space-y-4 lg:h-[calc(100vh-235px)] lg:overflow-y-auto lg:pr-1">
             {loadingOutlook && !outlook && (
               <div className="panel flex flex-col items-center gap-3 p-8 text-center">
                 <span className="relative grid h-9 w-9 place-items-center text-chart-600">
@@ -597,20 +786,20 @@ export default function App() {
                 </span>
               </div>
             )}
-
+            {/* Live Alerts — calls GET /api/alerts */}
+            {place && (
+              <AlertsPanel lat={place.latitude} lon={place.longitude} compact />
+            )}
+            {/* Quick Risk Breakdown — calls GET /api/risk */}
+            {place && (
+              <QuickRiskPanel lat={place.latitude} lon={place.longitude} />
+            )}
             {outlook && (
-              <>
-                <div className="shrink-0">
-                  <FishingHeadline data={outlook} language={language} />
-                </div>
-                <div className="scroll-slim min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-                  <FishingPanel
-                    data={outlook}
-                    language={language}
-                    onSelectArea={(rank) => setFocusRank(rank)}
-                  />
-                </div>
-              </>
+              <FishingPanel
+                data={outlook}
+                language={uiLang}
+                onSelectArea={(rank) => setFocusRank(rank)}
+              />
             )}
           </div>
         </div>
@@ -632,7 +821,7 @@ export default function App() {
                 <span className="grid w-[18px] shrink-0 place-items-center rounded-full bg-ink-900 font-display text-[10px] font-bold leading-none text-paper-50" style={{ height: 18 }}>
                   {s.n}
                 </span>
-                <span className="font-semibold">{s.label[language] ?? s.label.en}</span>
+                <span className="font-semibold">{s.label[uiLang] ?? s.label.en}</span>
                 <span className="font-mono text-[10px] uppercase tracking-wide opacity-60">{s.hint}</span>
               </button>
             ))}
@@ -641,17 +830,23 @@ export default function App() {
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(350px,1fr)_1.6fr]">
             <div className="min-h-[540px] lg:h-[calc(100vh-280px)]">
               <ChatPanel
-                  messages={messages}
-                  busy={busy}
-                  agentEvents={[]}
-                  language={language}
-                  suggestions={suggestions}
-                  onSend={send}
-                  onLanguage={setLangChoice}
-                />
+                messages={messages}
+                busy={busy}
+                agentEvents={agentEvents}
+                language={uiLang}
+                suggestions={suggestions}
+                onSend={send}
+                onLanguage={(l) => setLangChoice(l)}
+                onReset={async () => {
+                  await api.resetSession(SESSION).catch(() => {});
+                  setMessages([]);
+                  setLatest(null);
+                  setAgentEvents([]);
+                }}
+              />
             </div>
 
-            <div className="scroll-slim space-y-4 lg:h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
+            <div className="space-y-4 lg:h-[calc(100vh-280px)] lg:overflow-y-auto lg:pr-1">
               {latest && <ConditionsStrip res={latest} language={latest.language} />}
 
               <MarineMap
@@ -661,7 +856,8 @@ export default function App() {
                 routes={latest?.routes ?? []}
                 geofence={latest?.geofence ?? []}
                 alerts={latest?.alerts ?? []}
-                language={language}
+                language={uiLang}
+                portFeatures={portFeatures}
               />
 
               {latest?.risk && (
@@ -758,7 +954,7 @@ export default function App() {
               )}
 
               {latest && (
-                <AgentTracePanel trace={latest.trace} elapsed={latest.elapsed_ms} language={latest.language} />
+                <AgentTracePanel trace={latest.trace} elapsed={latest.elapsed_ms} language={latest.language} explanationSource={latest.explanation_source} />
               )}
 
               {latest && (
@@ -771,9 +967,44 @@ export default function App() {
         </>
       )}
 
-      {tab === "authority" && <AuthorityPanel language={language} />}
+      {tab === "authority" && <AuthorityPanel language={uiLang} />}
 
-      {tab === "system" && <SystemPanel mode={mode} language={language} />}
+      {tab === "system" && <SystemPanel mode={mode} language={uiLang} />}
+
+      {tab === "ops" && (
+        <div className="mx-auto w-full space-y-6">
+          <VoyageTracker
+            activeVoyages={activeVoyages}
+            onStartVoyage={handleStartVoyage}
+            onEndVoyage={handleEndVoyage}
+            onTriggerTestAlert={handleTriggerTestAlert}
+            currentPort={{
+              name: place?.label || DEFAULT_PORT.name,
+              lat: place?.latitude || DEFAULT_PORT.lat,
+              lon: place?.longitude || DEFAULT_PORT.lon,
+            }}
+            language={uiLang}
+            isLoading={loadingPlan}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ConflictLogPanel conflicts={planConflicts} language={uiLang} />
+            <DecisionPipelineVisualizer
+              trace={planTrace}
+              requestId={planRequestId || undefined}
+              onRefresh={handleRunPlan}
+              isLoading={loadingPlan}
+            />
+          </div>
+
+          <EvidenceProvenancePanel
+            evidence={planEvidence}
+            language={uiLang}
+            onRefresh={handleRunPlan}
+            isLoading={loadingPlan}
+          />
+        </div>
+      )}
     </div>
   );
 }
