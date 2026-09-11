@@ -168,6 +168,25 @@ export function WindGlyph({ size = 14, className = "" }: G) {
   );
 }
 
+/** A simple clock face — used to flag time-of-day advice (best window, etc). */
+export function ClockGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <circle cx="10" cy="10" r="7.6" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 5.6 V10.2 L13.2 12.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A downward chevron — used for dropdown affordances. */
+export function ChevronDownGlyph({ size = 10, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M3.5 7 L10 13.5 L16.5 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function CrosshairGlyph({ size = 15, className = "" }: G) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>

@@ -8,8 +8,20 @@
 import { useEffect, useState, useCallback } from "react";
 import * as api from "../api";
 import type { RiskCategory } from "../types";
-import { RISK_COLOR } from "./RiskDial";
-import { WarnGlyph, LockGlyph } from "./glyphs";
+import RiskDial, { RISK_COLOR } from "./RiskDial";
+import { WarnGlyph, LockGlyph, ClockGlyph, WaveGlyph, WindGlyph, FishGlyph } from "./glyphs";
+
+/** Picks a small contextual icon for a free-text advice line, so the list
+ * reads as more than a wall of identical bullets. Falls back to a plain
+ * tick mark when nothing matches — works across en/hi/mr text. */
+function adviceIcon(line: string) {
+  const s = line.toLowerCase();
+  if (/\d\s?(am|pm)|समय|वेळ|सुबह|सकाळ/.test(s)) return <ClockGlyph size={13} className="shrink-0" />;
+  if (/wave|लहर|लाट|swell|sea/.test(s)) return <WaveGlyph size={13} className="shrink-0" />;
+  if (/wind|हवा|वारा|breeze/.test(s)) return <WindGlyph size={13} className="shrink-0" />;
+  if (/fish|मछली|मासे|catch/.test(s)) return <FishGlyph size={13} className="shrink-0" />;
+  return <WarnGlyph size={13} className="shrink-0" />;
+}
 
 interface QuickRiskPanelProps {
   lat: number;
@@ -60,10 +72,18 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
   const color = RISK_COLOR[cat];
 
   return (
-    <div className="panel overflow-hidden">
-      <div className="hd" style={{ borderBottom: `2px solid ${color}20` }}>
+    <div
+      className="panel overflow-hidden border-l-4"
+      style={{ borderLeftColor: color }}
+    >
+      <div className="hd" style={{ borderBottom: `2px solid ${color}20`, background: `${color}0a` }}>
         <span className="label flex items-center gap-2">
-          <span style={{ color }}><LockGlyph size={12} /></span>
+          <span
+            className="grid h-5 w-5 shrink-0 place-items-center rounded-full"
+            style={{ color, background: `${color}18` }}
+          >
+            <LockGlyph size={11} />
+          </span>
           Risk Assessment
         </span>
         <span
@@ -74,39 +94,33 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
         </span>
       </div>
 
-      {/* Score bar */}
-      <div className="px-4 pt-3.5 pb-1">
-        <div className="flex items-end justify-between">
-          <span
-            className="font-mono text-[32px] font-black leading-none tabular-nums"
-            style={{ color }}
-          >
-            {risk.score}
-          </span>
+      {/* Score — the same animated instrument dial used on the Ask tab,
+          sized down for this compact card. */}
+      <div className="flex items-center gap-4 px-4 pt-4 pb-1">
+        <RiskDial score={risk.score} category={cat} size={92} />
+        <div className="min-w-0 flex-1">
           <span className="font-mono text-[10px] uppercase tracking-wide text-ink-400">
-            / 100 risk score
+            out of 100 · risk score
           </span>
+          {risk.headline && (
+            <div className="mt-1 text-[13.5px] font-semibold leading-snug text-ink-800">{risk.headline}</div>
+          )}
         </div>
-        <div
-          className="mt-2 h-1.5 w-full rounded-full"
-          style={{ background: "var(--rule-faint)" }}
-        >
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${risk.score}%`, background: color }}
-          />
-        </div>
-        {risk.headline && (
-          <div className="mt-2 text-[12.5px] font-semibold text-ink-700">{risk.headline}</div>
-        )}
+      </div>
+
+      <div className="px-4 pb-1">
         {risk.official_warning && (
-          <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] font-bold text-risk-extreme">
+          <div
+            className="mb-1.5 flex items-center gap-1.5 rounded-[2px] px-2 py-1 font-mono text-[11px] font-bold text-risk-extreme"
+            style={{ background: "rgba(175,35,24,0.08)" }}
+          >
             <WarnGlyph size={12} />
             Official advisory active
           </div>
         )}
         {risk.window && (
-          <div className="mt-1 text-[11.5px] italic text-ink-500">
+          <div className="flex items-center gap-1.5 text-[11.5px] italic text-ink-500">
+            <ClockGlyph size={12} className="shrink-0 text-ink-400" />
             Conditions improve: {risk.window}
           </div>
         )}
@@ -148,11 +162,19 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
 
       {/* Advice */}
       {risk.advice?.length > 0 && (
-        <div className="border-t px-4 pt-2 pb-3" style={{ borderColor: "var(--rule-faint)" }}>
-          <ul className="space-y-1">
+        <div className="border-t px-4 pt-3 pb-3.5" style={{ borderColor: "var(--rule-faint)" }}>
+          <ul className="space-y-1.5">
             {risk.advice.map((tip, i) => (
-              <li key={i} className="flex gap-2 text-[11.5px] leading-relaxed text-ink-600">
-                <span className="shrink-0 text-ink-300">▸</span>
+              <li
+                key={i}
+                className="group flex items-center gap-2.5 rounded-[3px] px-2 py-1.5 text-[12px] leading-relaxed text-ink-700 transition-colors hover:bg-chart-100/35"
+              >
+                <span
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-110"
+                  style={{ color, background: `${color}14` }}
+                >
+                  {adviceIcon(tip)}
+                </span>
                 {tip}
               </li>
             ))}
@@ -160,8 +182,12 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
         </div>
       )}
 
-      <div className="px-4 pb-3 font-mono text-[10px] text-ink-300">
-        {risk.sources.join(" · ")} · {risk.mode}
+      <div
+        className="flex items-center justify-between border-t bg-paper-150/50 px-4 py-2 font-mono text-[9.5px] uppercase tracking-wide text-ink-400"
+        style={{ borderColor: "var(--rule-faint)" }}
+      >
+        <span>{risk.sources.join(" · ")}</span>
+        <span className="font-bold" style={{ color }}>{risk.mode}</span>
       </div>
     </div>
   );

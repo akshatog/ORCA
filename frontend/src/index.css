@@ -990,6 +990,32 @@ path.radius-drift {
   background: transparent;
 }
 
+/* ---- slim scrollbars: language strip + Today-page side column ----
+   Thinner and low-profile compared to the default 10px scrollbar above,
+   so it doesn't sit on top of panel edges/content. Stays faint until
+   the container is hovered or actively scrolled. */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(42, 115, 145, 0.28) transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: rgba(42, 115, 145, 0.22);
+  border-radius: 999px;
+  border: none;
+  background-clip: padding-box;
+}
+.scroll-slim:hover::-webkit-scrollbar-thumb,
+.scroll-slim:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(30, 95, 122, 0.55);
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
