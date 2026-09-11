@@ -12,15 +12,19 @@ import {
   CheckGlyph,
   ChevronDownGlyph,
   CompassMark,
+  CrosshairGlyph,
   FishGlyph,
   MapGlyph,
   MicGlyph,
   SpeakerGlyph,
   StopGlyph,
   WarnGlyph,
+  WaveGlyph,
+  WindGlyph,
 } from "./glyphs";
 import { PORTS } from "./LocationPicker";
 import MarineMap from "./MarineMap";
+import PFZList from "./PFZList";
 import { RISK_COLOR } from "./RiskDial";
 
 /**
@@ -71,6 +75,14 @@ const T: Record<Language, Record<string, string>> = {
     legendGood: "Good",
     legendFair: "Fair",
     legendPoor: "Poor",
+    enterApp: "Open full app",
+    wave: "Wave",
+    wind: "Wind",
+    sea: "Sea state",
+    nearestHarbour: "Nearest safe harbour",
+    away: "away",
+    noZonesTitle: "No ranked zones here",
+    noZonesBody: "Too far from the coast for fishing-zone data — tap the harbour name above to switch.",
   },
   hi: {
     today: "आज",
@@ -102,6 +114,14 @@ const T: Record<Language, Record<string, string>> = {
     legendGood: "अच्छा",
     legendFair: "ठीक",
     legendPoor: "कम",
+    enterApp: "पूरा ऐप खोलें",
+    wave: "लहरें",
+    wind: "हवा",
+    sea: "समुद्र",
+    nearestHarbour: "निकटतम सुरक्षित बंदरगाह",
+    away: "दूर",
+    noZonesTitle: "यहाँ कोई क्षेत्र उपलब्ध नहीं",
+    noZonesBody: "समुद्र से बहुत दूर है — बंदरगाह बदलने के लिए ऊपर नाम पर टैप करें।",
   },
   mr: {
     today: "आज",
@@ -133,6 +153,14 @@ const T: Record<Language, Record<string, string>> = {
     legendGood: "चांगले",
     legendFair: "ठीक",
     legendPoor: "कमी",
+    enterApp: "संपूर्ण अ‍ॅप उघडा",
+    wave: "लाटा",
+    wind: "वारा",
+    sea: "समुद्र",
+    nearestHarbour: "सर्वात जवळचे सुरक्षित बंदर",
+    away: "अंतरावर",
+    noZonesTitle: "इथे कोणतीही क्षेत्रे उपलब्ध नाहीत",
+    noZonesBody: "समुद्रापासून खूप दूर आहे — बंदर बदलण्यासाठी वरील नावावर टॅप करा.",
   },
 };
 
@@ -183,6 +211,36 @@ function clock12(h: number): string {
   return `${hh % 12 || 12} ${hh < 12 ? "AM" : "PM"}`;
 }
 
+/** Great-circle distance in km — good enough for "which harbour is closest". */
+function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+/** Ease-out count from 0 to target whenever target changes — the score
+ * "computing" rather than just appearing, without looping or repeating. */
+function useCountUp(target: number, ms = 850): number {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / ms);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(target * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return n;
+}
+
 function getRecognition(): any | null {
   const w = window as any;
   const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
@@ -214,6 +272,14 @@ export default function MobileApp() {
     setLangChosen(true);
   };
 
+  // Returning users (langChosen already true from a past visit) skip the
+  // landing entirely, same as before. First-time users see the language
+  // grid, then — on the SAME screen — a simplified status + voice shortcut,
+  // before landingDone flips true and the full tabbed app takes over.
+  const [landingDone, setLandingDone] = useState<boolean>(() =>
+    Boolean(window.localStorage.getItem("orca_lang")),
+  );
+
   // Header language dropdown (replaces the old row of always-visible chips —
   // one tidy control instead of seven competing for space).
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -228,6 +294,22 @@ export default function MobileApp() {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [langMenuOpen]);
+
+  // Same pattern as the language dropdown: a compact, always-available way
+  // to switch harbour from the map tab, instead of a picker that only
+  // appears (and only once) when the current spot has no fishing zones.
+  const [portMenuOpen, setPortMenuOpen] = useState(false);
+  const portMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!portMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (portMenuRef.current && !portMenuRef.current.contains(e.target as Node)) {
+        setPortMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [portMenuOpen]);
 
   // Today tab opens in a short, simple summary; the fuller breakdown (risk
   // timeline, ranked grounds, fuel/profit) is one tap away, not automatic.
@@ -281,11 +363,13 @@ export default function MobileApp() {
     return () => window.clearTimeout(id);
   }, [outlook]);
 
-  // 200px was headroom for header + bottom nav alone; the info strip and tap
-  // hint added around the map need a bit more subtracted so nothing clips.
-  const [mapH, setMapH] = useState(() => Math.max(300, window.innerHeight - 270));
+  // The map used to be nearly the whole tab. Now that a conditions strip,
+  // a harbour card and the ranked-zones list share the page with it, it
+  // only needs to be big enough to read at a glance — roughly a third of
+  // the screen — not the dominant element.
+  const [mapH, setMapH] = useState(() => Math.min(320, Math.max(220, Math.round(window.innerHeight * 0.34))));
   useEffect(() => {
-    const onR = () => setMapH(Math.max(300, window.innerHeight - 270));
+    const onR = () => setMapH(Math.min(320, Math.max(220, Math.round(window.innerHeight * 0.34))));
     window.addEventListener("resize", onR);
     return () => window.removeEventListener("resize", onR);
   }, []);
@@ -488,6 +572,13 @@ export default function MobileApp() {
   const cat = outlook?.safety.category;
   const color = cat ? RISK_COLOR[cat] : "#42596D";
   const danger = cat === "HIGH" || cat === "EXTREME";
+  const animatedScore = useCountUp(outlook?.safety.score ?? 0);
+
+  const nearestPort = place
+    ? PORTS.map((p) => ({ ...p, distance_km: distanceKm(place.lat, place.lon, p.lat, p.lon) })).sort(
+        (a, b) => a.distance_km - b.distance_km,
+      )[0]
+    : null;
 
   const speakArea = (a: FishingOutlook["areas"][number]) => {
     const line = `${a.rank}. ${Math.round(a.distance_km)} ${t.km}. ${a.probability}%. ${(
@@ -500,39 +591,117 @@ export default function MobileApp() {
     setTab("map");
   };
 
-  // ---------------------------------------------------------------- gate
-  if (!langChosen) {
+  // ---------------------------------------------------------------- landing
+  if (!landingDone) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-8 bg-paper-100 px-6 py-10 text-center">
+      <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-paper-100 px-6 py-10 text-center">
         <ChartDefs />
         <div className="sea-drift" aria-hidden />
-        <CompassMark size={60} className="animate-stampIn text-ink-900" />
-        <div className="animate-rise" style={{ animationDelay: "80ms" }}>
-          <div className="font-display text-[26px] font-black leading-tight text-ink-900">ORCA</div>
-          <div className="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-ink-500">
-            Choose your language · अपनी भाषा चुनें
-          </div>
-        </div>
-        <div className="grid w-full max-w-[340px] grid-cols-2 gap-3">
-          {LANG_OPTIONS.map((o, i) => (
-            <button
-              key={o.code}
-              onClick={() => pickLanguage(o.code)}
-              className={`panel animate-rise flex items-center justify-center px-3 py-6 transition active:scale-[0.97] active:bg-paper-150 ${
-                language === o.code ? "border-ink-900 bg-ink-900" : ""
-              }`}
-              style={{ animationDelay: `${140 + i * 40}ms` }}
-            >
-              <span
-                className={`font-display text-[20px] font-bold ${
-                  language === o.code ? "text-paper-50" : "text-ink-900"
-                }`}
+
+        {!langChosen ? (
+          // --- step 1: pick a language ---
+          <>
+            <CompassMark size={60} className="animate-stampIn text-ink-900" />
+            <div className="animate-rise" style={{ animationDelay: "80ms" }}>
+              <div className="font-display text-[26px] font-black leading-tight text-ink-900">ORCA</div>
+              <div className="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-ink-500">
+                Choose your language · अपनी भाषा चुनें
+              </div>
+            </div>
+            <div className="grid w-full max-w-[340px] grid-cols-2 gap-3">
+              {LANG_OPTIONS.map((o, i) => (
+                <button
+                  key={o.code}
+                  onClick={() => pickLanguage(o.code)}
+                  className={`panel animate-rise flex items-center justify-center px-3 py-6 transition active:scale-[0.97] active:bg-paper-150 ${
+                    language === o.code ? "border-ink-900 bg-ink-900" : ""
+                  }`}
+                  style={{ animationDelay: `${140 + i * 40}ms` }}
+                >
+                  <span
+                    className={`font-display text-[20px] font-bold ${
+                      language === o.code ? "text-paper-50" : "text-ink-900"
+                    }`}
+                  >
+                    {o.native}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          // --- step 2: same screen, now show a simplified live status + voice shortcut ---
+          <div className="popin flex w-full max-w-[360px] flex-col items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CompassMark size={26} className="text-ink-900 compass-needle" />
+              <span className="font-display text-[18px] font-black text-ink-900">ORCA</span>
+            </div>
+
+            {!outlook ? (
+              <div className="panel flex flex-col items-center gap-3 p-8 text-center">
+                <CompassMark
+                  size={44}
+                  className="animate-[spin_5s_linear_infinite] text-ink-300 opacity-80"
+                />
+                <span className="text-[14px] italic text-ink-400">{t.reading}</span>
+              </div>
+            ) : (
+              <div
+                className="panel rule-double relative flex w-full flex-col items-center overflow-hidden px-4 pb-4 pt-5 text-center"
+                style={{ background: `${color}14` }}
               >
-                {o.native}
-              </span>
+                <div className="font-mono text-[10.5px] text-chart-600">
+                  {outlook.location.nearest_landing_centre}
+                </div>
+                <div
+                  className="popin relative mt-2 grid h-24 w-24 place-items-center rounded-full border-[6px] bg-paper-50"
+                  style={{ borderColor: color, color }}
+                >
+                  <span className="sonar-once" style={{ borderColor: color }} />
+                  <span className="sonar-once sonar-once-2" style={{ borderColor: color }} />
+                  {danger && <span className="alert-ring" style={{ borderColor: color }} />}
+                  <span className="svg-bob inline-flex">
+                    {danger ? <WarnGlyph size={38} /> : <BoatGlyph size={42} />}
+                  </span>
+                </div>
+                <div className="mt-2 font-display text-[24px] font-black leading-none" style={{ color }}>
+                  {animatedScore}
+                  <span className="text-[13px] font-bold opacity-70"> / 100</span>
+                </div>
+                <p className="mt-2 font-display text-[16px] font-semibold leading-snug text-ink-900">
+                  {outlook.advice[0]}
+                </p>
+                {outlook.best_window && (
+                  <div className="mt-2 font-mono text-[11px] text-chart-700">
+                    {t.bestTime}: {clock12(outlook.best_window.from_hour)}–
+                    {clock12(outlook.best_window.to_hour)}
+                  </div>
+                )}
+
+                {/* voice — the whole reason this screen replaced a plain gate */}
+                <button
+                  onClick={() => {
+                    goToVoice();
+                    setLandingDone(true);
+                  }}
+                  className="mt-4 flex w-full items-center justify-center gap-3 rounded-[3px] bg-ink-900 py-4 font-mono text-[15px] font-bold uppercase tracking-[0.14em] text-paper-50 transition active:translate-y-px active:scale-[0.98]"
+                  style={{ boxShadow: "0 10px 22px -12px rgba(18,33,45,0.55)" }}
+                >
+                  <MicGlyph size={20} />
+                  {t.voiceCta}
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => setLandingDone(true)}
+              className="flex items-center gap-1.5 font-mono text-[11.5px] font-bold uppercase tracking-wide text-chart-600 transition active:scale-95"
+            >
+              {t.enterApp}
+              <ChevronDownGlyph size={11} className="-rotate-90" />
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -675,6 +844,8 @@ export default function MobileApp() {
                   className="popin relative grid h-32 w-32 place-items-center rounded-full border-[7px] bg-paper-50"
                   style={{ borderColor: color, color, boxShadow: `0 10px 26px -12px ${color}80` }}
                 >
+                  <span className="sonar-once" style={{ borderColor: color }} />
+                  <span className="sonar-once sonar-once-2" style={{ borderColor: color }} />
                   {danger && <span className="alert-ring" style={{ borderColor: color }} />}
                   <span className="svg-bob inline-flex">
                     {danger ? <WarnGlyph size={54} /> : <BoatGlyph size={58} />}
@@ -684,7 +855,7 @@ export default function MobileApp() {
                   className="mt-3 font-display text-[30px] font-black leading-none"
                   style={{ color }}
                 >
-                  {outlook.safety.score}
+                  {animatedScore}
                   <span className="text-[15px] font-bold opacity-70"> / 100</span>
                 </div>
                 <p className="mt-2.5 font-display text-[19px] font-semibold leading-snug text-ink-900">
@@ -852,33 +1023,94 @@ export default function MobileApp() {
       {/* ================= MAP ================= */}
       {tab === "map" && (
         <main className="animate-rise flex-1 px-2 pb-20 pt-2">
-          {/* location + radius strip — gives the map a reason to be here */}
-          <div className="panel mb-2 flex items-center justify-between gap-2 px-3 py-2">
-            <div className="min-w-0">
-              <div className="label !text-[9px]">{outlook?.location.nearest_landing_centre ?? t.map}</div>
-              <div className="mt-0.5 flex items-center gap-1 font-mono text-[10.5px] text-chart-600">
-                <MapGlyph size={11} /> {t.radius}: {outlook?.radius_km ?? 100} {t.km}
+          {/* location + radius + legend, and live conditions — one card, not two stacked */}
+          <div className="panel mb-2 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              <div ref={portMenuRef} className="relative min-w-0">
+                <button
+                  onClick={() => setPortMenuOpen((v) => !v)}
+                  className="flex min-w-0 items-center gap-1 text-left active:opacity-70"
+                >
+                  <span className="min-w-0">
+                    <span className="label !text-[9px]">{outlook?.location.nearest_landing_centre ?? t.map}</span>
+                    <span className="mt-0.5 flex items-center gap-1 font-mono text-[10.5px] text-chart-600">
+                      <MapGlyph size={11} /> {t.radius}: {outlook?.radius_km ?? 100} {t.km}
+                    </span>
+                  </span>
+                  <ChevronDownGlyph
+                    size={9}
+                    className={`mt-2.5 shrink-0 text-ink-400 transition-transform ${portMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {portMenuOpen && (
+                  <div
+                    className="panel animate-rise absolute left-0 top-[calc(100%+6px)] z-[650] max-h-56 w-48 overflow-y-auto !p-1"
+                    style={{ transformOrigin: "top left" }}
+                  >
+                    {PORTS.map((p) => (
+                      <button
+                        key={p.name}
+                        onClick={() => {
+                          setPlace({ lat: p.lat, lon: p.lon, name: p.name });
+                          setPortMenuOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-2 rounded-[2px] px-2.5 py-2 text-left font-mono text-[12.5px] font-semibold text-ink-800 transition active:bg-paper-150"
+                      >
+                        {p.name}
+                        {outlook?.location.nearest_landing_centre === p.name && <CheckGlyph size={10} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* rating legend — what the coloured pins mean */}
+              <div className="flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar">
+                {(
+                  [
+                    ["very_good", t.legendBest],
+                    ["good", t.legendGood],
+                    ["fair", t.legendFair],
+                    ["poor", t.legendPoor],
+                  ] as const
+                ).map(([k, label]) => (
+                  <span key={k} className="flex items-center gap-1 font-mono text-[9px] text-ink-500">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: RATING_COLOR[k] }}
+                    />
+                    {label}
+                  </span>
+                ))}
               </div>
             </div>
-            {/* rating legend — what the coloured pins mean */}
-            <div className="flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar">
-              {(
-                [
-                  ["very_good", t.legendBest],
-                  ["good", t.legendGood],
-                  ["fair", t.legendFair],
-                  ["poor", t.legendPoor],
-                ] as const
-              ).map(([k, label]) => (
-                <span key={k} className="flex items-center gap-1 font-mono text-[9px] text-ink-500">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: RATING_COLOR[k] }}
-                  />
-                  {label}
-                </span>
-              ))}
-            </div>
+
+            {/* live conditions — the numbers behind the coloured pins */}
+            {outlook && (
+              <div className="grid grid-cols-3 border-t" style={{ borderColor: "var(--rule-faint)" }}>
+                <div className="px-2 py-2 text-center">
+                  <div className="label flex items-center justify-center gap-1 !text-[8.5px]">
+                    <WaveGlyph size={11} /> {t.wave}
+                  </div>
+                  <div className="mt-0.5 font-mono text-[13px] font-bold text-ink-900">
+                    {outlook.safety.wave_height_m != null ? `${outlook.safety.wave_height_m} m` : "—"}
+                  </div>
+                </div>
+                <div className="border-x px-2 py-2 text-center" style={{ borderColor: "var(--rule-faint)" }}>
+                  <div className="label flex items-center justify-center gap-1 !text-[8.5px]">
+                    <WindGlyph size={11} /> {t.wind}
+                  </div>
+                  <div className="mt-0.5 font-mono text-[13px] font-bold text-ink-900">
+                    {outlook.safety.wind_speed_kmh != null ? `${outlook.safety.wind_speed_kmh} km/h` : "—"}
+                  </div>
+                </div>
+                <div className="px-2 py-2 text-center">
+                  <div className="label !text-[8.5px]">{t.sea}</div>
+                  <div className="mt-0.5 truncate font-mono text-[13px] font-bold text-ink-900">
+                    {outlook.safety.sea_state ?? "—"}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Geofence warning banner when near restricted zone */}
@@ -924,6 +1156,42 @@ export default function MobileApp() {
             />
           </div>
           <p className="mt-2 text-center font-mono text-[10.5px] text-ink-400">{t.tapChart}</p>
+
+          {/* nearest safe harbour — a real next-step, not just a picture */}
+          {nearestPort && (
+            <button
+              onClick={() => setPlace({ lat: nearestPort.lat, lon: nearestPort.lon, name: nearestPort.name })}
+              className="panel mt-2 flex w-full items-center gap-3 px-3 py-2.5 text-left transition active:scale-[0.99] active:bg-paper-150"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-[3px] border-chart-500 bg-paper-50 text-chart-600">
+                <CrosshairGlyph size={16} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="label !text-[9px]">{t.nearestHarbour}</span>
+                <span className="block truncate text-[14px] font-bold text-ink-900">{nearestPort.name}</span>
+              </span>
+              <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-chart-700">
+                {Math.round(nearestPort.distance_km)} {t.km} {t.away}
+              </span>
+            </button>
+          )}
+
+          {/* ranked fishing grounds — reuses the same list the chat panel uses.
+              When the current spot is too far inland to have any (like this
+              screen's own default before GPS resolves), fill the space with
+              a next step instead of leaving it blank. */}
+          {outlook && outlook.areas.length > 0 ? (
+            <div className="mt-2">
+              <PFZList zones={outlook.areas} language={uiLang} />
+            </div>
+          ) : outlook ? (
+            <div className="panel mt-2 flex items-center gap-2.5 px-3.5 py-3">
+              <FishGlyph size={16} className="shrink-0 text-ink-300" />
+              <p className="text-[12px] leading-snug text-ink-500">
+                <span className="font-bold text-ink-700">{t.noZonesTitle}.</span> {t.noZonesBody}
+              </p>
+            </div>
+          ) : null}
         </main>
       )}
 
@@ -1015,7 +1283,7 @@ export default function MobileApp() {
 
       {/* ---------------- bottom nav: three doors, never deeper ---------------- */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-[700] grid grid-cols-3 gap-1 border-t bg-paper-50/95 p-1.5 backdrop-blur-sm"
+        className="fixed inset-x-0 bottom-0 z-[700] flex border-t bg-paper-50/95 p-1.5 backdrop-blur-sm"
         style={{ borderColor: "var(--rule-strong)", boxShadow: "0 -6px 18px -14px rgba(18,33,45,0.4)" }}
       >
         {(
@@ -1024,18 +1292,30 @@ export default function MobileApp() {
             ["map", <MapGlyph key="m" size={20} />],
             ["ask", <MicGlyph key="a" size={24} />],
           ] as [MTab, JSX.Element][]
-        ).map(([m, icon]) => (
+        ).flatMap(([m, icon], i) => [
+          // a hairline rule between tabs — same divider style used elsewhere
+          // in the app (conditions strip, areas list), not a new motif
+          ...(i > 0
+            ? [
+                <span
+                  key={`${m}-div`}
+                  aria-hidden
+                  className="my-2 w-px shrink-0"
+                  style={{ background: "var(--rule-faint)" }}
+                />
+              ]
+            : []),
           <button
             key={m}
             onClick={() => setTab(m)}
-            className={`flex flex-col items-center gap-1 rounded-[3px] py-2 transition-all duration-200 active:scale-95 ${
+            className={`mx-0.5 flex flex-1 flex-col items-center gap-1 rounded-[3px] py-2 transition-all duration-200 active:scale-95 ${
               tab === m ? "-translate-y-0.5 bg-ink-900 text-paper-50 shadow-[0_6px_14px_-8px_rgba(18,33,45,0.6)]" : "text-ink-500"
             }`}
           >
             {icon}
             <span className="font-mono text-[10.5px] font-bold uppercase tracking-wide">{t[m]}</span>
-          </button>
-        ))}
+          </button>,
+        ])}
       </nav>
     </div>
   );

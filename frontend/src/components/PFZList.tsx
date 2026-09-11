@@ -1,5 +1,17 @@
-import type { Language, PFZZone } from "../types";
+import type { Language } from "../types";
 import { SchoolGlyph } from "./glyphs";
+
+/** Only the fields this list actually renders — lets it accept either the
+ * chat endpoint's PFZZone[] or an outlook's FishingArea[] without a mapping step. */
+export interface ZoneLike {
+  rank: number;
+  distance_km: number;
+  bearing: string;
+  sst_c: number | null;
+  chlorophyll_mg_m3: number | null;
+  wave_height_m: number | null;
+  confidence: number;
+}
 
 const L: Record<Language, Record<string, string>> = {
   en: {
@@ -26,7 +38,7 @@ export default function PFZList({
   zones,
   language = "en",
 }: {
-  zones: PFZZone[];
+  zones: ZoneLike[];
   language?: Language;
 }) {
   if (!zones.length) return null;
