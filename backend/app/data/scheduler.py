@@ -121,12 +121,17 @@ def start_scheduler(run_warmup: bool = False) -> BackgroundScheduler:
     log.info("ORCA 2.0 Tiered Scheduler started with 5 background cadence jobs.")
 
     if run_warmup:
-        # Run all jobs once at startup to warm caches
-        job_fetch_gdacs()
-        job_fetch_open_meteo()
-        job_fetch_imd_advisory()
-        job_fetch_incois_pfz()
-        job_fetch_mosdac()
+        import threading
+        def warmup_task():
+            log.info("Running background cache warmup...")
+            job_fetch_gdacs()
+            job_fetch_open_meteo()
+            job_fetch_imd_advisory()
+            job_fetch_incois_pfz()
+            job_fetch_mosdac()
+            log.info("Background cache warmup complete.")
+            
+        threading.Thread(target=warmup_task, daemon=True).start()
 
     return _scheduler
 
