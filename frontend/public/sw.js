@@ -1,5 +1,5 @@
 // ORCA 2.0 PWA Service Worker — Offline Sea Cache
-const CACHE_NAME = "orca-2.0-cache-v1";
+const CACHE_NAME = "orca-2.0-cache-v3";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
