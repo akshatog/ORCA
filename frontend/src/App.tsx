@@ -9,6 +9,7 @@ import FishingPanel from "./components/FishingPanel";
 import QuickRiskPanel from "./components/QuickRiskPanel";
 import {
   ChartDefs,
+  ChevronDownGlyph,
   CompassMark,
   CourseArrow,
   CrosshairGlyph,
@@ -72,6 +73,16 @@ const SCENARIOS: {
   { id: "route", n: "5", label: { en: "Safe route", hi: "सुरक्षित मार्ग", mr: "सुरक्षित मार्ग" }, ask: "Give me the safest route to the nearest fishing zone near Mumbai", hint: "Mumbai · geofence" },
 ];
 
+const LANGUAGES: { code: SupportedLanguage; short: string; native: string }[] = [
+  { code: "en", short: "EN", native: "English" },
+  { code: "hi", short: "हिं", native: "हिंदी" },
+  { code: "mr", short: "मरा", native: "मराठी" },
+  { code: "ta", short: "தமி", native: "தமிழ்" },
+  { code: "te", short: "తెలు", native: "తెలుగు" },
+  { code: "bn", short: "বাং", native: "বাংলা" },
+  { code: "ml", short: "മല", native: "മലയാളം" },
+];
+
 const TAB_LABEL: Record<Language, Record<AppTab, string>> = {
   en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System", ops: "Ops & Provenance" },
   hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली", ops: "अभियान व साक्ष्य" },
@@ -81,7 +92,6 @@ const TAB_LABEL: Record<Language, Record<AppTab, string>> = {
 /** The app chrome, in the fisher's language. */
 const UI: Record<Language, Record<string, string>> = {
   en: {
-    chartNo: "Chart №",
     dataEdition: "Data edition",
     voice: "Voice",
     lang: "Language",
@@ -95,7 +105,6 @@ const UI: Record<Language, Record<string, string>> = {
     validTill: "valid till",
   },
   hi: {
-    chartNo: "चार्ट क्र.",
     dataEdition: "डेटा संस्करण",
     voice: "आवाज़",
     lang: "भाषा",
@@ -109,7 +118,6 @@ const UI: Record<Language, Record<string, string>> = {
     validTill: "मान्य",
   },
   mr: {
-    chartNo: "तक्ता क्र.",
     dataEdition: "डेटा आवृत्ती",
     voice: "आवाज",
     lang: "भाषा",
@@ -130,6 +138,8 @@ export default function App() {
   const [latest, setLatest] = useState<ChatResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [langChoice, setLangChoice] = useState<SupportedLanguage | null>(null);
+  const [langOpen, setLangOpen] = useState(false);
+  const langBoxRef = useRef<HTMLDivElement>(null);
   const [detected, setDetected] = useState<SupportedLanguage>("en");
   const language: SupportedLanguage = langChoice ?? detected;
   const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
@@ -259,6 +269,14 @@ export default function App() {
   };
 
   // ---- guided tour ----
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (langBoxRef.current && !langBoxRef.current.contains(e.target as Node)) setLangOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
   const [tourOn, setTourOn] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [tourPaused, setTourPaused] = useState(false);
@@ -559,11 +577,6 @@ export default function App() {
 
           {/* title-block cells */}
           <div className="ml-auto flex flex-wrap items-stretch">
-            <div className="hidden flex-col justify-center border-l px-5 py-3 sm:flex" style={{ borderColor: "var(--rule-faint)" }}>
-              <span className="label">{ui.chartNo}</span>
-              <span className="mt-1 font-mono text-[13px] font-bold text-ink-800">SIH26176</span>
-            </div>
-
             {/* mode switch */}
             <button
               onClick={cycleMode}
@@ -597,34 +610,55 @@ export default function App() {
             </button>
 
             <div
-              className="flex flex-col justify-center border-l px-4 py-3"
+              ref={langBoxRef}
+              className="relative flex flex-col justify-center border-l px-4 py-3"
               style={{ borderColor: "var(--rule-faint)" }}
             >
               <span className="label">{ui.lang}</span>
-              <span className="mt-1 flex flex-wrap gap-1">
-                {([
-                  { code: "en", label: "EN" },
-                  { code: "hi", label: "हिं" },
-                  { code: "mr", label: "मरा" },
-                  { code: "ta", label: "தமி" },
-                  { code: "te", label: "తెలు" },
-                  { code: "bn", label: "বাং" },
-                  { code: "ml", label: "മല" },
-                ] as { code: SupportedLanguage; label: string }[]).map((l) => (
-                  <button
-                    key={l.code}
-                    onClick={() => setLangChoice(l.code)}
-                    className={`rounded-[2px] border px-1.5 py-0.5 font-mono text-[10px] font-bold transition ${
-                      language === l.code
-                        ? "border-ink-900 bg-ink-900 text-paper-50"
-                        : "text-ink-400 hover:text-ink-800"
-                    }`}
-                    style={language === l.code ? undefined : { borderColor: "var(--rule)" }}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </span>
+              <button
+                onClick={() => setLangOpen((v) => !v)}
+                className={`mt-1 flex items-center gap-1.5 font-mono text-[13px] font-bold transition ${
+                  langOpen ? "text-chart-600" : "text-ink-800 hover:text-chart-600"
+                }`}
+              >
+                {LANGUAGES.find((l) => l.code === language)?.short ?? "EN"}
+                <ChevronDownGlyph
+                  size={10}
+                  className={`text-ink-300 transition-transform ${langOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {langOpen && (
+                <div
+                  className="scroll-slim absolute right-0 top-full z-[700] mt-2 max-h-[60vh] w-[168px] overflow-y-auto rounded-[3px] border shadow-xl"
+                  style={{ borderColor: "var(--rule-strong)", background: "var(--paper-bright)" }}
+                >
+                  {LANGUAGES.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => {
+                        setLangChoice(l.code);
+                        setLangOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 border-b px-3.5 py-2.5 text-left transition last:border-0 ${
+                        language === l.code
+                          ? "bg-ink-900 text-paper-50"
+                          : "text-ink-700 hover:bg-paper-150"
+                      }`}
+                      style={{ borderColor: "var(--rule-faint)" }}
+                    >
+                      <span className="text-[13px] font-semibold">{l.native}</span>
+                      <span
+                        className={`font-mono text-[9.5px] uppercase tracking-wide ${
+                          language === l.code ? "text-paper-200" : "text-ink-400"
+                        }`}
+                      >
+                        {l.short}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center border-l px-4" style={{ borderColor: "var(--rule-faint)" }}>
@@ -687,8 +721,8 @@ export default function App() {
 
       {/* ================= HOME : location + today's plan ================= */}
       {tab === "home" && (
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
-          <div className="space-y-4">
+        <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[1.35fr_minmax(370px,1fr)]">
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <LocationPicker current={place} language={uiLang} onPick={setPlace} />
 
             <MarineMap
@@ -714,52 +748,59 @@ export default function App() {
                     v: `${outlook.safety.score}`,
                     s: outlook.safety.category,
                     color: RISK_COLOR[outlook.safety.category],
-                    icon: <LockGlyph size={11} />,
+                    icon: <LockGlyph size={14} />,
+                    anim: "",
                   },
                   {
                     k: language === "mr" ? "लाटा" : language === "hi" ? "लहरें" : "Waves",
                     v: `${outlook.safety.wave_height_m ?? "—"}`,
                     s: "m",
-                    icon: <WaveGlyph size={12} />,
+                    color: "#2a7391",
+                    icon: <WaveGlyph size={15} />,
+                    anim: "swim",
                   },
                   {
                     k: language === "mr" ? "वारा" : language === "hi" ? "हवा" : "Wind",
                     v: `${Math.round(outlook.safety.wind_speed_kmh ?? 0)}`,
                     s: "km/h",
-                    icon: <WindGlyph size={12} />,
+                    color: "#5D7386",
+                    icon: <WindGlyph size={15} />,
+                    anim: "compass-needle",
                   },
                   {
                     k: language === "mr" ? "जागा" : language === "hi" ? "जगहें" : "Areas",
                     v: `${outlook.areas.length}`,
                     s: `in ${outlook.radius_km} km`,
-                    icon: <CrosshairGlyph size={11} />,
+                    color: outlook.areas.length > 0 ? "#1D7A50" : "#9C5F44",
+                    icon: <CrosshairGlyph size={13} />,
+                    anim: "",
                   },
                 ].map((x, i) => (
                   <div
                     key={x.k}
-                    className={`group relative px-4 py-3 transition-colors hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
+                    className={`popin group relative px-4 py-3.5 transition-all duration-200 hover:-translate-y-[2px] hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
                     style={{
                       borderColor: "var(--rule-faint)",
-                      borderTop: x.color ? `2px solid ${x.color}` : "2px solid transparent",
+                      borderTop: `3px solid ${x.color}`,
+                      background: `linear-gradient(180deg, ${x.color}0d, transparent 60%)`,
                     }}
                   >
-                    <div className="label flex items-center gap-1.5 truncate">
+                    <div className="flex items-center gap-2">
                       <span
-                        className="shrink-0 text-ink-300 transition-colors group-hover:text-chart-500"
-                        style={x.color ? { color: x.color, opacity: 0.75 } : undefined}
+                        className={`relative grid h-7 w-7 shrink-0 place-items-center rounded-full transition-transform duration-200 group-hover:scale-110 ${x.anim}`}
+                        style={{ color: x.color, background: `${x.color}18` }}
                       >
                         {x.icon}
+                        {i === 0 && <span className="badge-ping" style={{ color: x.color }} />}
                       </span>
-                      {x.k}
+                      <span className="label truncate">{x.k}</span>
                     </div>
                     <div
-                      className={`mt-1 font-mono text-[20px] font-bold tabular-nums leading-none text-ink-900 ${
-                        x.color ? "" : "transition-colors group-hover:text-chart-600"
-                      }`}
-                      style={x.color ? { color: x.color } : undefined}
+                      className="mt-2 font-mono text-[22px] font-bold tabular-nums leading-none"
+                      style={{ color: x.color }}
                     >
                       {x.v}
-                      <span className="ml-1.5 text-[10px] font-semibold opacity-60">{x.s}</span>
+                      <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-60">{x.s}</span>
                     </div>
                   </div>
                 ))}
@@ -767,7 +808,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="space-y-4 lg:h-[calc(100vh-235px)] lg:overflow-y-auto lg:pr-1">
+          <div className="stagger-in space-y-4">
             {loadingOutlook && !outlook && (
               <div className="panel flex flex-col items-center gap-3 p-8 text-center">
                 <span className="relative grid h-9 w-9 place-items-center text-chart-600">

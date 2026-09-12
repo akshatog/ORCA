@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import * as api from "../api";
-import { WarnGlyph } from "./glyphs";
+import { CheckGlyph, WarnGlyph } from "./glyphs";
 
 interface AlertsPanelProps {
   lat: number;
@@ -58,8 +58,8 @@ export default function AlertsPanel({ lat, lon, refreshMs = 60_000, compact = fa
 
   if (loading && !data) {
     return (
-      <div className="panel px-4 py-3 text-[12px] italic text-ink-400">
-        Checking for marine warnings…
+      <div className="panel flex items-center gap-3 px-4 py-3.5">
+        <span className="text-[12px] italic text-ink-400">Checking for marine warnings…</span>
       </div>
     );
   }
@@ -67,22 +67,24 @@ export default function AlertsPanel({ lat, lon, refreshMs = 60_000, compact = fa
   if (totalAlerts === 0 && geofence.length === 0) {
     if (compact) return null; // hide when clear in compact mode
     return (
-      <div className="panel px-4 py-3">
-        <div className="flex items-center gap-2 text-[12.5px] text-risk-low font-semibold">
-          <span className="inline-block h-2 w-2 rounded-full bg-risk-low" />
-          No active marine warnings
+      <div className="panel animate-rise flex items-center gap-3 overflow-hidden px-4 py-3.5" style={{ borderLeft: "3px solid var(--risk-low)" }}>
+        <span className="popin grid h-8 w-8 shrink-0 place-items-center rounded-full bg-risk-low/15 text-risk-low">
+          <CheckGlyph size={15} />
+        </span>
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold text-risk-low">No active marine warnings</div>
+          {lastFetch > 0 && (
+            <div className="font-mono text-[10px] text-ink-400">
+              Checked {new Date(lastFetch).toLocaleTimeString()}
+            </div>
+          )}
         </div>
-        {lastFetch > 0 && (
-          <div className="mt-0.5 font-mono text-[10px] text-ink-300">
-            Checked {new Date(lastFetch).toLocaleTimeString()}
-          </div>
-        )}
       </div>
     );
   }
 
   return (
-    <div className="panel overflow-hidden">
+    <div className="panel rule-double animate-rise overflow-hidden" style={{ borderTopColor: "var(--risk-extreme)" }}>
       <div className="hd border-risk-extreme/25">
         <span className="label flex items-center gap-2" style={{ color: "var(--risk-extreme)" }}>
           <WarnGlyph size={13} />

@@ -168,6 +168,42 @@ export function WindGlyph({ size = 14, className = "" }: G) {
   );
 }
 
+/** A simple clock face — used to flag time-of-day advice (best window, etc). */
+export function ClockGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <circle cx="10" cy="10" r="7.6" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 5.6 V10.2 L13.2 12.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A drifting rain cloud — used for weather/visibility risk factors. */
+export function CloudRainGlyph({ size = 14, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path
+        d="M5.4 11.2 A3.4 3.4 0 0 1 6 4.5 A4.4 4.4 0 0 1 14.5 6.1 A3.1 3.1 0 0 1 14 12.2 H5.9 Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M7.3 14.6 L6.3 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10.8 14.6 L9.8 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+      <path d="M14.3 14.6 L13.3 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.45" />
+    </svg>
+  );
+}
+
+/** A downward chevron — used for dropdown affordances. */
+export function ChevronDownGlyph({ size = 10, className = "" }: G) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M3.5 7 L10 13.5 L16.5 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function CrosshairGlyph({ size = 15, className = "" }: G) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
