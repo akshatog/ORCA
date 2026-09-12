@@ -1,12 +1,12 @@
 """Tiered Data Scheduler for ORCA 2.0.
 
 Manages periodic background scrapers and API cache warming according to
-the data refresh cadence defined in the project specification:
+the data refresh cadence:
   - GDACS cyclone feed:      every 15 min (fast intensification)
-  - Open-Meteo cache:        every 30 min (marine and atmospheric forecast)
-  - IMD Advisory bulletins:  every 1 hr   (official emergency bulletins)
-  - StormGlass cache:        every 2 hr   (tides and currents within 50 req/day quota)
+  - Open-Meteo cache:        every 30 min (marine, atmospheric, and current forecast)
+  - IMD CAP RSS bulletins:   every 1 hr   (official emergency bulletins)
   - INCOIS PFZ bulletins:    every 6 hr   (satellite-derived daily updates)
+  - MOSDAC satellite data:   every 6 hr   (chlorophyll/SST daily composites)
 
 All jobs are warmed at startup so first user queries are answered from cache immediately.
 """
@@ -70,23 +70,6 @@ def job_fetch_imd_advisory() -> None:
         log.warning("[Scheduler] IMD advisory check failed: %s", e)
 
 
-def job_fetch_stormglass() -> None:
-    """Warm StormGlass tide/current cache for active voyage regions (2 hr)."""
-    try:
-        from .stormglass_client import fetch_stormglass_point
-        voyages = get_active_voyages()
-        if voyages:
-            for v in voyages:
-                fetch_stormglass_point(float(v.location["lat"]), float(v.location["lon"]))
-            log.info("[Scheduler] StormGlass refreshed for %d active voyage(s)", len(voyages))
-        else:
-            # Refresh default port
-            default_port = PORTS[0]
-            fetch_stormglass_point(default_port["lat"], default_port["lon"])
-            log.info("[Scheduler] StormGlass refreshed for base port (%s)", default_port["name"])
-    except Exception as e:
-        log.warning("[Scheduler] StormGlass refresh failed: %s", e)
-
 
 def job_fetch_incois_pfz() -> None:
     """Scrape INCOIS Potential Fishing Zones (6 hr)."""
@@ -96,6 +79,27 @@ def job_fetch_incois_pfz() -> None:
         log.info("[Scheduler] INCOIS PFZ scraped: %d zone(s) active", len(zones))
     except Exception as e:
         log.warning("[Scheduler] INCOIS PFZ check failed: %s", e)
+
+
+def job_fetch_mosdac() -> None:
+    """Warm MOSDAC satellite cache for key ports (6 hr, same cadence as daily composites)."""
+    try:
+        from .mosdac_client import fetch_mosdac_chlorophyll
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+
+        # Only warm if credentials are set
+        import os
+        if not os.getenv("MOSDAC_USER", "").strip():
+            log.debug("[Scheduler] MOSDAC credentials not configured — skipping warmup")
+            return
+
+        for p in PORTS[:3]:  # Mumbai, Ratnagiri, Goa
+            fetch_mosdac_chlorophyll(p["lat"], p["lon"], now)
+
+        log.info("[Scheduler] MOSDAC chlorophyll cache warmed for %d port(s)", min(3, len(PORTS)))
+    except Exception as e:
+        log.warning("[Scheduler] MOSDAC warmup failed: %s", e)
 
 
 def start_scheduler(run_warmup: bool = False) -> BackgroundScheduler:
@@ -110,8 +114,8 @@ def start_scheduler(run_warmup: bool = False) -> BackgroundScheduler:
     _scheduler.add_job(job_fetch_gdacs, "interval", minutes=15, id="fetch_gdacs_and_alert", replace_existing=True)
     _scheduler.add_job(job_fetch_open_meteo, "interval", minutes=30, id="fetch_open_meteo_cache", replace_existing=True)
     _scheduler.add_job(job_fetch_imd_advisory, "interval", hours=1, id="fetch_imd_advisory", replace_existing=True)
-    _scheduler.add_job(job_fetch_stormglass, "interval", hours=2, id="fetch_stormglass_cache", replace_existing=True)
     _scheduler.add_job(job_fetch_incois_pfz, "interval", hours=6, id="fetch_incois_pfz", replace_existing=True)
+    _scheduler.add_job(job_fetch_mosdac, "interval", hours=6, id="fetch_mosdac_cache", replace_existing=True)
 
     _scheduler.start()
     log.info("ORCA 2.0 Tiered Scheduler started with 5 background cadence jobs.")
@@ -121,8 +125,8 @@ def start_scheduler(run_warmup: bool = False) -> BackgroundScheduler:
         job_fetch_gdacs()
         job_fetch_open_meteo()
         job_fetch_imd_advisory()
-        job_fetch_stormglass()
         job_fetch_incois_pfz()
+        job_fetch_mosdac()
 
     return _scheduler
 

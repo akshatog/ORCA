@@ -59,7 +59,7 @@ type AppTab = "home" | "ask" | "authority" | "system" | "ops";
 /** "landing" is the front door; every deep link (?tab, ?demo, ?tour, ?at) skips it. */
 type Tab = AppTab | "landing";
 
-const SCENARIOS: {
+const DEFAULT_SCENARIOS: {
   id: string;
   n: string;
   label: Record<Language, string>;
@@ -281,13 +281,20 @@ export default function App() {
   const [tourStep, setTourStep] = useState(0);
   const [tourPaused, setTourPaused] = useState(false);
   const tourActionDone = useRef(-1);
+  const [scenarios, setScenarios] = useState(DEFAULT_SCENARIOS);
 
   // ---------------------------------------------------------------- boot
   useEffect(() => {
     api.zones().then((z) => setZones(z.features)).catch(() => setZones([]));
     api.health().then((h) => setMode(h.data_mode)).catch(() => setMode("DEMO"));
-    // Warm up live scenarios from backend (falls back to hardcoded SCENARIOS)
-    api.liveScenarios().catch(() => { /* keep hardcoded fallback */ });
+    // Warm up live scenarios from backend (falls back to hardcoded DEFAULT_SCENARIOS)
+    api.liveScenarios()
+      .then((res) => {
+        if (res.scenarios && res.scenarios.length > 0) {
+          setScenarios(res.scenarios);
+        }
+      })
+      .catch(() => { /* keep hardcoded fallback */ });
     // Fetch all port markers once at boot for the map layer
     api.mapPorts()
       .then((fc) => setPortFeatures(fc.features.map((f) => ({
@@ -338,7 +345,7 @@ export default function App() {
     if (langParam === "en" || langParam === "hi" || langParam === "mr") setLangChoice(langParam);
     const wanted = params.get("demo");
     if (wanted) {
-      const s = SCENARIOS.find((x) => x.id === wanted || x.n === wanted);
+      const s = scenarios.find((x) => x.id === wanted || x.n === wanted);
       if (s) setTimeout(() => runScenario(s.ask), 250);
     }
     if (params.get("tour") === "1") setTimeout(() => startTour(), 500);
@@ -761,7 +768,7 @@ export default function App() {
                   },
                   {
                     k: language === "mr" ? "वारा" : language === "hi" ? "हवा" : "Wind",
-                    v: `${Math.round(outlook.safety.wind_speed_kmh ?? 0)}`,
+                    v: outlook.safety.wind_speed_kmh != null ? `${Math.round(outlook.safety.wind_speed_kmh)}` : "—",
                     s: "km/h",
                     color: "#5D7386",
                     icon: <WindGlyph size={15} />,
@@ -851,7 +858,7 @@ export default function App() {
         <>
           <div className="flex flex-wrap items-center gap-2">
             <span className="label mr-1">{ui.scenarios}</span>
-            {SCENARIOS.map((s) => (
+            {scenarios.map((s) => (
               <button
                 key={s.id}
                 onClick={() => runScenario(s.ask)}

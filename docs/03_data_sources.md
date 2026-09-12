@@ -5,34 +5,16 @@
 **Tier 1 — live, working now, keyless or instant-signup**
 - **Open-Meteo** (Marine + Forecast) — wave height/period/direction, SST,
   swell, wind, rain, visibility, pressure. Backbone source. **Already
-  integrated** in `data/live_client.py` with TTL caching (600s). Before
-  adding a new provider for a field, check Open-Meteo's field list first.
-- **StormGlass** — wave, swell, wind, **tide**, **sea current**, water temp.
-  Free tier: 50 requests/day. Sign-up is instant. This is your only source
-  for tide and current. Cache per-region on an interval — never per user
-  query, the quota won't survive that. **Adapter: TASK-4.2.**
+  integrated** in `data/live_client.py` with TTL caching (600s).
 - **GDACS** — free, keyless RSS/XML feed of active global disaster events
   including tropical cyclones (position, wind speed/category, alert level
-  green/orange/red). Use this for cyclone track/position — do not attempt to
-  scrape IMD for this specifically. **Adapter: TASK-4.1.**
+  green/orange/red).
+- **IMD** — fisherman warning bulletins are scraped periodically and parsed.
+- **INCOIS** — PFZ text advisories and geospatial bounding data are retrieved live.
+- **MOSDAC** — OceanSat-3 `E06OCM_L4_AC` Chlorophyll-a data is downloaded natively and parsed via h5py/scipy as NetCDF3/NetCDF4 data. Fully operational via scheduled task.
 
 **Tier 3 — real, but gated: treat as `CACHED`, never `LIVE`**
-- **IMD** — the official API (`api.imd.gov.in`) requires IP whitelisting
-  after an approval process; not viable this round. Instead: fetch the
-  **fisherman warning bulletin PDFs** (publicly accessible, no auth) on a
-  schedule — a few times a day is enough, these aren't issued continuously.
-- **INCOIS PFZ text advisories** — real, human-readable pages, confirmed
-  format (location, depth, distance/direction from named landing centres),
-  no clean API. Fetch periodically, cache, feed into PFZ ranking logic.
-  Separately: check INCOIS's ERDDAP/Live Access Server (under Data Holdings)
-  — if it's actually open and queryable, it's a much cleaner path for
-  gridded ocean data (SST, currents). Unconfirmed — 20 minutes to check,
-  promote to Tier 1 if it works.
-- **MOSDAC** — has Open Data (no registration), Order Data (cart → SFTP
-  delivery, not instant), and a documented Data Download API
-  (`config.json` + `mdapi.py`). Access level being checked directly —
-  see `DECISIONS.md` for the outcome once confirmed. Assume `CACHED` /
-  batch-file delivery until proven otherwise.
+(None currently. IMD, INCOIS, and MOSDAC were successfully promoted to Tier 1)
 
 **Tier 4 — not pursued this round**
 - Damini (lightning) — no accessible public API confirmed. Keep `LIGHTNING`

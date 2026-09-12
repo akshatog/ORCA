@@ -138,9 +138,11 @@ def _pick_hour_index(times: list, target: datetime) -> int:
 
 
 def fetch_marine(lat: float, lon: float, when: datetime) -> Optional[Dict]:
-    """Wave height / period / SST. Returns None on any failure."""
+    """Wave height / period / SST / ocean currents. Returns None on any failure."""
     h = _series("marine", MARINE_URL,
-                "wave_height,wave_period,sea_surface_temperature", lat, lon)
+                "wave_height,wave_period,sea_surface_temperature,"
+                "ocean_current_velocity,ocean_current_direction",
+                lat, lon)
     if not h:
         return None
     times = h.get("time") or []
@@ -154,6 +156,8 @@ def fetch_marine(lat: float, lon: float, when: datetime) -> Optional[Dict]:
         "wave_height_m": at("wave_height"),
         "wave_period_s": at("wave_period"),
         "sst_c": at("sea_surface_temperature"),
+        "current_speed_ms": at("ocean_current_velocity"),
+        "current_direction_deg": at("ocean_current_direction"),
         "valid_time": times[i],
         "provider": "Open-Meteo Marine",
     }
