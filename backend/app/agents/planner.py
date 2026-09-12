@@ -93,6 +93,7 @@ def handle(req: ChatRequest) -> ChatResponse:
     _SESSIONS[req.session_id] = intent
 
     location = intent.location
+    fetched_at = now_ist()  # capture the actual query time before any IO
     when = _target_datetime(intent)
     needs = set(intent.needs)
 
@@ -162,7 +163,7 @@ def handle(req: ChatRequest) -> ChatResponse:
     expl_res = explanation_agent.run(
         intent=intent, risk=risk, pfz=pfz_zones, routes=routes, geofence=geofence,
         weather=weather_d, ocean=ocean_d, cyclone=cyclone_d, gis=gis_d,
-        agents=agents, mode=mode, when=when,  # type: ignore[arg-type]
+        agents=agents, mode=mode, when=when, fetched_at=fetched_at,  # type: ignore[arg-type]
     )
     trace.append(_trace(expl_res, "explanation"))
 

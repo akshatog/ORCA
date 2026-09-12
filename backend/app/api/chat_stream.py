@@ -1,4 +1,4 @@
-﻿"""Streaming chat endpoint — SSE agent-by-agent progress + final answer."""
+"""Streaming chat endpoint — SSE agent-by-agent progress + final answer."""
 from __future__ import annotations
 
 import json
@@ -179,7 +179,7 @@ def _stream(req: ChatRequest):
     expl_res = explanation_agent.run(
         intent=intent, risk=risk, pfz=pfz_zones, routes=routes, geofence=geofence,
         weather=weather_d, ocean=ocean_d, cyclone=cyclone_d, gis=gis_d,
-        agents=agents, mode=mode, when=when,
+        agents=agents, mode=mode, when=when, fetched_at=base,
     )
     trace.append(_trace(expl_res, "explanation"))
     yield _event("agent_done", {

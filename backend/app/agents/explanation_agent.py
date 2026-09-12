@@ -115,7 +115,7 @@ def build_evidence(weather: Dict, ocean: Dict, cyclone: Dict, gis: Dict,
 def run(*, intent, risk: Optional[RiskAssessment], pfz: List[PFZZone],
         routes: List[RouteOption], geofence: List, weather: Dict, ocean: Dict,
         cyclone: Dict, gis: Dict, agents: Dict[str, AgentResult],
-        mode: str, when: datetime) -> AgentResult:
+        mode: str, when: datetime, fetched_at: Optional[datetime] = None) -> AgentResult:
     lang: Language = intent.language
     parts: List[str] = []
 
@@ -171,8 +171,15 @@ def run(*, intent, risk: Optional[RiskAssessment], pfz: List[PFZZone],
     # Only real data providers belong in the citation line — "ORCA" is us.
     srcs = sorted({SOURCE_LABELS.get(a.source, a.source)
                    for a in agents.values() if a.ok and a.source not in ("ORCA",)})
-    parts.append(f"{t('sources', lang)}: {', '.join(srcs)} · "
-                 f"{t('updated', lang)} {when.strftime('%d %b %Y, %H:%M IST')}")
+    # Use the actual fetch time (now) for the "Updated" stamp, not the forecast
+    # target time — otherwise a question about "tomorrow" shows tomorrow's date
+    # which confuses users into thinking the data source is wrong.
+    display_time = fetched_at if fetched_at is not None else when
+    provenance_line = f"{t('sources', lang)}: {', '.join(srcs)} · {t('updated', lang)} {display_time.strftime('%d %b %Y, %H:%M IST')}"
+    # If the forecast target is a different day, clarify what day was analysed
+    if fetched_at is not None and when.date() != fetched_at.date():
+        provenance_line += f" · Forecast for {when.strftime('%d %b, %H:%M IST')}"
+    parts.append(provenance_line)
     if mode == "DEMO":
         parts.append(t("demo_mode", lang))
 
@@ -221,9 +228,11 @@ def run(*, intent, risk: Optional[RiskAssessment], pfz: List[PFZZone],
             rec = next((r for r in routes if r.recommended), routes[0])
             facts["recommended_route_km"] = rec.distance_km
             facts["recommended_route_eta_min"] = rec.eta_minutes
-        # Sources line ? LLM must append it verbatim.
+        # Sources line — LLM must append it verbatim.
         srcs_line = f"{t('sources', lang)}: {chr(44).join(sorted({SOURCE_LABELS.get(a.source, a.source) for a in agents.values() if a.ok and a.source not in ('ORCA',)}))}" \
-                    f" · {t('updated', lang)} {when.strftime('%d %b %Y, %H:%M IST')}"
+                    f" · {t('updated', lang)} {display_time.strftime('%d %b %Y, %H:%M IST')}"
+        if fetched_at is not None and when.date() != fetched_at.date():
+            srcs_line += f" · Forecast for {when.strftime('%d %b, %H:%M IST')}"
         facts["sources_line"] = srcs_line
         facts["language"] = lang
         facts["mode"] = mode

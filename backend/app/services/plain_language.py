@@ -139,6 +139,9 @@ def build(*, lang: Language, risk_category: str, official_warning: bool,
           best_window: Optional[Sequence[int]], forecast: Sequence[Dict]) -> List[str]:
     """The whole advisory, as short spoken-style sentences."""
     lines: List[str] = []
+    
+    if lang not in ("en", "hi", "mr"):
+        lang = "en"
 
     # 1. safety first, always
     lines.append(GO_LINE.get(risk_category, GO_LINE["MODERATE"])[lang])
