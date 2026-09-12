@@ -26,6 +26,7 @@ import { PORTS } from "./LocationPicker";
 import MarineMap from "./MarineMap";
 import PFZList from "./PFZList";
 import { RISK_COLOR } from "./RiskDial";
+import EmergencyModal from "./EmergencyModal";
 
 /**
  * The phone — ORCA for the fisher himself, many of whom read little.
@@ -318,6 +319,7 @@ export default function MobileApp() {
   const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
   const [activeVoyage, setActiveVoyage] = useState<Voyage | null>(null);
   const [voyageLoading, setVoyageLoading] = useState(false);
+  const [sosOpen, setSosOpen] = useState(false);
 
   const [tab, setTab] = useState<MTab>(() => {
     const tp = new URLSearchParams(window.location.search).get("tab");
@@ -1280,6 +1282,17 @@ export default function MobileApp() {
           )}
         </main>
       )}
+
+      {/* Floating SOS button */}
+      <button
+        onClick={() => setSosOpen(true)}
+        className="fixed bottom-[88px] right-4 z-[700] grid h-[52px] w-[52px] place-items-center rounded-full bg-risk-extreme font-display text-[15px] font-black text-paper-50 shadow-[0_8px_20px_-6px_rgba(175,35,24,0.6)] transition-transform active:scale-95"
+        style={{ border: "2px solid rgba(255, 255, 255, 0.4)" }}
+      >
+        SOS
+      </button>
+
+      <EmergencyModal isOpen={sosOpen} onClose={() => setSosOpen(false)} />
 
       {/* ---------------- bottom nav: three doors, never deeper ---------------- */}
       <nav
