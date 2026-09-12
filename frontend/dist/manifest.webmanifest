@@ -1,13 +1,25 @@
 {
-  "name": "ORCA — Marine Decision Support",
+  "name": "ORCA \u2014 Marine Decision Support",
   "short_name": "ORCA",
-  "description": "Ten agents read the sea. One safe, explainable decision — in your language.",
+  "description": "Ten agents read the sea. One safe, explainable decision \u2014 in your language.",
   "start_url": "/?m=1",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F5EEDD",
-  "theme_color": "#F5EEDD",
+  "background_color": "#0f2744",
+  "theme_color": "#0f2744",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon.svg",
       "sizes": "any",

@@ -85,9 +85,13 @@ const LANGUAGES: { code: SupportedLanguage; short: string; native: string }[] = 
 ];
 
 const TAB_LABEL: Record<Language, Record<AppTab, string>> = {
-  en: { home: "Today", ask: "Ask ORCA", authority: "Authority", system: "System", ops: "Ops & Provenance" },
-  hi: { home: "आज", ask: "ORCA से पूछें", authority: "प्रशासन", system: "प्रणाली", ops: "अभियान व साक्ष्य" },
-  mr: { home: "आज", ask: "ORCA ला विचारा", authority: "प्रशासन", system: "प्रणाली", ops: "मोहीम व पुरावे" },
+  en: { home: "Today",  ask: "Ask ORCA",          authority: "Authority", system: "System",    ops: "Ops & Provenance" },
+  hi: { home: "आज",    ask: "ORCA से पूछें",      authority: "प्रशासन",   system: "प्रणाली",  ops: "अभियान व साक्ष्य" },
+  mr: { home: "आज",    ask: "ORCA ला विचारा",     authority: "प्रशासन",   system: "प्रणाली",  ops: "मोहीम व पुरावे" },
+  ta: { home: "இன்று", ask: "ORCA-யிடம் கேளுங்கள்", authority: "அதிகாரம்", system: "அமைப்பு",  ops: "செயல்பாடு & ஆதாரம்" },
+  te: { home: "నేడు",  ask: "ORCA ని అడగండి",     authority: "అధికారం",  system: "వ్యవస్థ",   ops: "కార్యక్రమాలు & ఆధారాలు" },
+  bn: { home: "আজ",    ask: "ORCA-কে জিজ্ঞেস করুন", authority: "কর্তৃপক্ষ", system: "সিস্টেম", ops: "অভিযান ও প্রমাণ" },
+  ml: { home: "ഇന്ന്", ask: "ORCA-യോട് ചോദിക്കൂ", authority: "അധികാരം",  system: "സംവിധാനം",ops: "പ്രവർത്തനം & തെളിവ്" },
 };
 
 /** The app chrome, in the fisher's language. */
@@ -131,6 +135,58 @@ const UI: Record<Language, Record<string, string>> = {
     warnings: "अधिकृत सागरी इशारे",
     validTill: "पर्यंत",
   },
+  ta: {
+    dataEdition: "தரவு பதிப்பு",
+    voice: "குரல்",
+    lang: "மொழி",
+    tour: "வழிகாட்டி சுற்றுலா",
+    stopTour: "சுற்றுலா நிறுத்து",
+    marginalia: "ஆழம் மீட்டரில் · WGS 84",
+    scenarios: "தயாரான நிலைமைகள்",
+    courses: "திட்டமிட்ட பாதைகள்",
+    recommended: "பரிந்துரைக்கப்பட்டது",
+    warnings: "அதிகாரப்பூர்வ கடல் எச்சரிக்கைகள்",
+    validTill: "வரை",
+  },
+  te: {
+    dataEdition: "డేటా సంస్కరణ",
+    voice: "వాయిస్",
+    lang: "భాష",
+    tour: "గైడెడ్ టూర్",
+    stopTour: "టూర్ ఆపు",
+    marginalia: "లోతు మీటర్లలో · WGS 84",
+    scenarios: "సిద్ధం చేసిన దృశ్యాలు",
+    courses: "వేయబడిన మార్గాలు",
+    recommended: "సిఫార్సు చేయబడింది",
+    warnings: "అధికారిక సముద్ర హెచ్చరికలు",
+    validTill: "వరకు",
+  },
+  bn: {
+    dataEdition: "ডেটা সংস্করণ",
+    voice: "কণ্ঠ",
+    lang: "ভাষা",
+    tour: "গাইডেড ট্যুর",
+    stopTour: "ট্যুর বন্ধ করুন",
+    marginalia: "গভীরতা মিটারে · WGS 84",
+    scenarios: "প্রস্তুত পরিস্থিতি",
+    courses: "পরিকল্পিত পথ",
+    recommended: "প্রস্তাবিত",
+    warnings: "সরকারি সামুদ্রিক সতর্কতা",
+    validTill: "পর্যন্ত",
+  },
+  ml: {
+    dataEdition: "ഡേറ്റ പതിപ്പ്",
+    voice: "ശബ്ദം",
+    lang: "ഭാഷ",
+    tour: "ഗൈഡഡ് ടൂർ",
+    stopTour: "ടൂർ നിർത്തുക",
+    marginalia: "ആഴം മീറ്ററിൽ · WGS 84",
+    scenarios: "തയ്യാറാക്കിയ സാഹചര്യങ്ങൾ",
+    courses: "ആസൂത്രിത പാതകൾ",
+    recommended: "ശുപാർശ ചെയ്യുന്നു",
+    warnings: "ഔദ്യോഗിക സമുദ്ര മുന്നറിയിപ്പുകൾ",
+    validTill: "വരെ",
+  },
 };
 
 export default function App() {
@@ -143,7 +199,7 @@ export default function App() {
   const langBoxRef = useRef<HTMLDivElement>(null);
   const [detected, setDetected] = useState<SupportedLanguage>("en");
   const language: SupportedLanguage = langChoice ?? detected;
-  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+  const uiLang: Language = language;
 
   // ---- ORCA 2.0 Operational & Provenance state ----
   const [activeAlert, setActiveAlert] = useState<AlertEvent | null>(null);
@@ -431,7 +487,8 @@ export default function App() {
           if (speak) {
             try {
               const u = new SpeechSynthesisUtterance(res.answer.split(". ").slice(0, 2).join(". "));
-              u.lang = res.language === "mr" ? "mr-IN" : res.language === "hi" ? "hi-IN" : "en-IN";
+              const _LOCALE: Record<string, string> = { mr: "mr-IN", hi: "hi-IN", ta: "ta-IN", te: "te-IN", bn: "bn-IN", ml: "ml-IN" };
+              u.lang = _LOCALE[res.language] ?? "en-IN";
               u.rate = 0.98;
               window.speechSynthesis.cancel();
               window.speechSynthesis.speak(u);
@@ -757,9 +814,15 @@ export default function App() {
 
             {outlook && (
               <div className="panel grid grid-cols-2 overflow-hidden sm:grid-cols-4">
-                {[
+                {/* Quick metric labels — each in the selected language */
+                (() => {
+                  const _SAFETY: Record<Language, string> = { en: "Safety", hi: "सुरक्षा", mr: "सुरक्षा", ta: "பாதுகாப்பு", te: "భద్రత", bn: "নিরাপত্তা", ml: "സുരക്ഷ" };
+                  const _WAVES:  Record<Language, string> = { en: "Waves",  hi: "लहरें",   mr: "लाटा",    ta: "அலைகள்",   te: "అలలు",    bn: "ঢেউ",      ml: "തിരകൾ" };
+                  const _WIND:   Record<Language, string> = { en: "Wind",   hi: "हवा",     mr: "वारा",    ta: "காற்று",   te: "గాలి",    bn: "বাতাস",    ml: "കാറ്റ്" };
+                  const _AREAS:  Record<Language, string> = { en: "Areas",  hi: "जगहें",   mr: "जागा",    ta: "பகுதிகள்",  te: "ప్రాంతాలు",bn: "এলাকা",    ml: "ഭാഗങ്ങൾ" };
+                  return [
                   {
-                    k: language === "mr" ? "सुरक्षा" : language === "hi" ? "सुरक्षा" : "Safety",
+                    k: _SAFETY[uiLang] ?? _SAFETY.en,
                     v: `${outlook.safety.score}`,
                     s: outlook.safety.category,
                     color: RISK_COLOR[outlook.safety.category],
@@ -767,7 +830,7 @@ export default function App() {
                     anim: "",
                   },
                   {
-                    k: language === "mr" ? "लाटा" : language === "hi" ? "लहरें" : "Waves",
+                    k: _WAVES[uiLang] ?? _WAVES.en,
                     v: `${outlook.safety.wave_height_m ?? "—"}`,
                     s: "m",
                     color: "#2a7391",
@@ -775,7 +838,7 @@ export default function App() {
                     anim: "swim",
                   },
                   {
-                    k: language === "mr" ? "वारा" : language === "hi" ? "हवा" : "Wind",
+                    k: _WIND[uiLang] ?? _WIND.en,
                     v: outlook.safety.wind_speed_kmh != null ? `${Math.round(outlook.safety.wind_speed_kmh)}` : "—",
                     s: "km/h",
                     color: "#5D7386",
@@ -783,14 +846,14 @@ export default function App() {
                     anim: "compass-needle",
                   },
                   {
-                    k: language === "mr" ? "जागा" : language === "hi" ? "जगहें" : "Areas",
+                    k: _AREAS[uiLang] ?? _AREAS.en,
                     v: `${outlook.areas.length}`,
                     s: `in ${outlook.radius_km} km`,
                     color: outlook.areas.length > 0 ? "#1D7A50" : "#9C5F44",
                     icon: <CrosshairGlyph size={13} />,
                     anim: "",
-                  },
-                ].map((x, i) => (
+                  },];
+                })().map((x, i) => (
                   <div
                     key={x.k}
                     className={`popin group relative px-4 py-3.5 transition-all duration-200 hover:-translate-y-[2px] hover:bg-chart-100/40 ${i > 0 ? "border-l" : ""}`}
@@ -834,11 +897,15 @@ export default function App() {
                   />
                 </span>
                 <span className="text-[13px] italic text-ink-400">
-                  {language === "mr"
-                    ? "तुमच्या ठिकाणाची माहिती घेत आहे…"
-                    : language === "hi"
-                      ? "आपके स्थान की जानकारी ले रहे हैं…"
-                      : "Reading the sea at your location…"}
+                  {({
+                    en: "Reading the sea at your location…",
+                    hi: "आपके स्थान की जानकारी ले रहे हैं…",
+                    mr: "तुमच्या ठिकाणाची माहिती घेत आहे…",
+                    ta: "உங்கள் இடத்தில் கடலை படிக்கிறோம்…",
+                    te: "మీ స్థానంలో సముద్రాన్ని చదువుతున్నాం…",
+                    bn: "আপনার অবস্থানে সমুদ্র পড়ছি…",
+                    ml: "നിങ്ങളുടെ സ്ഥലത്ത് കടൽ വായിക്കുന്നു…",
+                  } as Record<Language, string>)[uiLang] ?? "Reading the sea at your location…"}
                 </span>
               </div>
             )}

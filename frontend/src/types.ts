@@ -1,5 +1,6 @@
-export type Language = "en" | "hi" | "mr";
-export type SupportedLanguage = Language | "ta" | "te" | "bn" | "ml" | "gu" | "kn" | "or";
+export type Language = "en" | "hi" | "mr" | "ta" | "te" | "bn" | "ml";
+export type SupportedLanguage = Language;  // all supported languages are now in Language
+
 export type DataMode = "LIVE" | "DEMO" | "CACHE";
 export type RiskCategory = "LOW" | "MODERATE" | "HIGH" | "EXTREME";
 

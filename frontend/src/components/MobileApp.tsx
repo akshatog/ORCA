@@ -162,7 +162,88 @@ const T: Record<Language, Record<string, string>> = {
     noZonesTitle: "इथे कोणतीही क्षेत्रे उपलब्ध नाहीत",
     noZonesBody: "समुद्रापासून खूप दूर आहे — बंदर बदलण्यासाठी वरील नावावर टॅप करा.",
   },
+  ta: {
+    today: "இன்று",     map: "மேப்",        ask: "கேளு",      listen: "கேளுங்கள்",
+    stop: "நிறுத்து",   bestTime: "சிறந்த நேரம்",            returnBy: "திரும்ப வர வேண்டிய நேரம்",
+    areas: "மீன் கிடைக்கும் இடம்",          km: "கி.மீ",     profit: "தேர்வு லாபம்",  fuel: "ஏதன்",
+    tapMic: "தடவி பேசுங்கள்",              listening: "கேட்கிறோம்…",
+    thinking: "குழுவிடம் கேட்கிறோம்…",     reading: "கடலை படிக்கிறோம்…",
+    warnSpeak: "அதிகாரப்பூர்வ எச்சரிக்கை",
+    askExamples: "நாளை காலை 6 மணிக்கு போகலாமா?",
+    bestTimeSay: "மீன்பிடிக்க சிறந்த நேரம் {a} முதல் {b}.",
+    returnBySay: "{t} முன்னாக திரும்பி வாருங்கள்.",
+    chooseLang: "உங்கள் மொழியைத் தேர்ந்தெடுங்கள்",
+    voiceCta: "குரலில் கேளுங்கள்",         moreDetails: "மேலும் விவரங்கள்",  lessDetails: "குறைவாக காட்டு",
+    radius: "தேடல் செம்மம்",               tapChart: "ஏதாவது இடத்தை சரிபார்க்க தடவுக",
+    legendBest: "சிறந்தது",               legendGood: "நல்லது",             legendFair: "பரவாயில்லை",
+    legendPoor: "குறைவு",                enterApp: "முழு ஆப் திறக்கூ",      wave: "அலைகள்",
+    wind: "காற்று",                        sea: "கடல்",
+    nearestHarbour: "அருகிலுள்ள பட்டினம்", away: "தூரத்தில்",
+    noZonesTitle: "இங்கு எந்த மேஞ்சலும் இல்லை",
+    noZonesBody: "கரையிலிருந்து மிகவும் தூரம் — மேலே பட்டின பெயரை தடவுக.",
+  },
+  te: {
+    today: "నేడు",      map: "మ్యాప్",      ask: "అడగండి",   listen: "వినండి",
+    stop: "ఆపండి",     bestTime: "అత్యుత్తమ సమయం",           returnBy: "ఈ సమయానికి తిరిగి రండి",
+    areas: "చేపలు ఉన్న చోటు",               km: "కి.మీ",    profit: "అంచనా లాభం",   fuel: "ఇంధనం",
+    tapMic: "నొక్కి మాట్లాడండి",            listening: "వింటున్నాం…",
+    thinking: "బృందాన్ని అడుగుతున్నాం…",   reading: "సముద్రాన్ని చదువుతున్నాం…",
+    warnSpeak: "అధికారిక హెచ్చరిక",
+    askExamples: "రేపు ఉదయం 6 గంటలకు వెళ్ళవచ్చా?",
+    bestTimeSay: "చేపలు పట్టడానికి అత్యుత్తమ సమయం {a} నుండి {b}.",
+    returnBySay: "{t} కి ముందు తిరిగి రండి.",
+    chooseLang: "మీ భాష ఎంచుకోండి",
+    voiceCta: "గాలిలో అడగండి",             moreDetails: "ఇంకా వివరాలు",     lessDetails: "తక్కువ చూపించు",
+    radius: "వెతుకు వ్యాసార్ధం",            tapChart: "ఏదైనా చోటు తనిఖీ చేయడానికి టాప్ చేయండి",
+    legendBest: "అత్యుత్తమం",              legendGood: "మంచిది",             legendFair: "సాధారణం",
+    legendPoor: "తక్కువ",                 enterApp: "పూర్తి ఆప్ తెరవండి",   wave: "అలలు",
+    wind: "గాలి",                           sea: "సముద్రం",
+    nearestHarbour: "సమీప నావాశ్రయం",      away: "దూరంలో",
+    noZonesTitle: "ఇక్కడ జోన్లు లేవు",
+    noZonesBody: "తీరం నుండి చాలా దూరం — మారడానికి పైన పేరు నొక్కండి.",
+  },
+  bn: {
+    today: "আজ",        map: "মানচিত্র",   ask: "জিজ্ঞেস",  listen: "শুনুন",
+    stop: "থামুন",      bestTime: "সেরা সময়",                returnBy: "ফিরে আসুন",
+    areas: "মাছ আছে যেখানে",               km: "কি.মি",    profit: "অনুমানিত লাভ", fuel: "তেল",
+    tapMic: "ট্যাপ করে বলুন",             listening: "শুনছি…",
+    thinking: "দলকে জিজ্ঞেস করছি…",       reading: "সমুদ্র পড়ছি…",
+    warnSpeak: "সরকারি সতর্কতা",
+    askExamples: "আমি কাল সকাল ৬টায় যেতে পারি?",
+    bestTimeSay: "মাছ ধরার সেরা সময় {a} থেকে {b}.",
+    returnBySay: "{t} এর আগে ফিরে আসুন.",
+    chooseLang: "আপনার ভাষা বেছুন",
+    voiceCta: "কণ্ঠস্বরে জিজ্ঞেস করুন",   moreDetails: "আরো বিবরণ",        lessDetails: "কম দেখান",
+    radius: "অনুসন্ধান ব্যাসার্ধ",          tapChart: "যেকোনো জায়গা পরীক্ষা করতে ট্যাপ করুন",
+    legendBest: "সেরা",                   legendGood: "ভালো",               legendFair: "মোটামুটি",
+    legendPoor: "কম",                    enterApp: "পূর্ণ অ্যাপ খুলুন",    wave: "ঢেউ",
+    wind: "বাতাস",                         sea: "সমুদ্র",
+    nearestHarbour: "নিকটতম বন্দর",      away: "দূরে",
+    noZonesTitle: "এখানে কোনো জোন নেই",
+    noZonesBody: "উপকূল থেকে অনেক দূরে — বন্দর বদলাতে উপরের নামে ট্যাপ করুন.",
+  },
+  ml: {
+    today: "ഇന്ന്",     map: "ഭൂപടം",      ask: "ചോദിക്കൂ", listen: "കേൾക്കൂ",
+    stop: "നിർത്തുക",  bestTime: "ഏറ്റവും നല്ല സമയം",         returnBy: "ഇതിന് മുമ്പ് തിരിച്ചുവരൂ",
+    areas: "മീൻ കിട്ടുന്ന ഇടം",             km: "കി.മീ",    profit: "കണക്കാക്കിയ ലാഭം", fuel: "ഇന്ധനം",
+    tapMic: "ടാപ്പ് ചെയ്ത് പറയുക",         listening: "കേൾക്കുന്നു…",
+    thinking: "സംഘത്തിനോട് ചോദിക്കുന്നു…", reading: "കടൽ വായിക്കുന്നു…",
+    warnSpeak: "ഔദ്യോഗിക മുന്നറിയിപ്പ്",
+    askExamples: "നാളെ രാവിലെ 6 മണിക്ക് പോകാമോ?",
+    bestTimeSay: "മത്സ്യബന്ധനത്തിന് {a} മുതൽ {b} വരെ ഏറ്റവും നല്ലത്.",
+    returnBySay: "{t} ക്ക് മുമ്പ് തിരിച്ചുവരൂ.",
+    chooseLang: "നിങ്ങളുടെ ഭാഷ തിരഞ്ഞെടുക്കൂ",
+    voiceCta: "ശബ്ദത്തിൽ ചോദിക്കൂ",       moreDetails: "കൂടുതൽ വിവരങ്ങൾ", lessDetails: "കുറവ് കാണിക്കൂ",
+    radius: "തിരയൽ ദൂരം",               tapChart: "ഏത് പ്രദേശം പരിശോധിക്കാനും ടാപ്പ് ചെയ്യൂ",
+    legendBest: "മികച്ചത്",              legendGood: "നല്ലത്",             legendFair: "സാധാരണം",
+    legendPoor: "കുറവ്",               enterApp: "പൂർണ ആപ്പ് തുറക്കൂ",   wave: "തിരകൾ",
+    wind: "കാറ്റ്",                        sea: "കടൽ",
+    nearestHarbour: "അടുത്ത തുറമുഖം",    away: "അകലെ",
+    noZonesTitle: "ഇവിടെ സോണുകൾ ഇല്ല",
+    noZonesBody: "കരയിൽ നിന്ന് വളരെ അകലെ — മാറാൻ മുകളിലെ പേരിൽ ടാപ്പ് ചെയ്യൂ.",
+  },
 };
+
 
 // First-launch language picker — each language written in its own script so a
 // fisher can recognise it by sight, not by reading English.
@@ -254,7 +335,8 @@ export default function MobileApp() {
     const saved = window.localStorage.getItem("orca_lang") as SupportedLanguage | null;
     return saved || "en";
   });
-  const uiLang: Language = (language === "hi" || language === "mr") ? language : "en";
+  const uiLang: Language = language;
+
   const t = T[uiLang] ?? T.en;
 
   // First-launch language gate: shown until the fisher has actually tapped a
