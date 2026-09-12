@@ -130,7 +130,7 @@ export default function EvidenceProvenancePanel({
                 return (
                   <tr key={idx} className="hover:bg-white/80 transition-colors">
                     <td className="py-2.5 px-3 font-semibold text-[#12212d] capitalize">
-                      {item.metric.replace(/_/g, " ")}
+                      {item.metric?.replace(/_/g, " ")}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-bold text-[#1b2b34]">
                       {typeof item.value === "object"
@@ -148,7 +148,7 @@ export default function EvidenceProvenancePanel({
                             borderColor: authStyle.border,
                           }}
                         >
-                          {item.authority_level.replace(/_/g, " ").toUpperCase()}
+                          {item.authority_level?.replace(/_/g, " ").toUpperCase()}
                         </span>
                       </div>
                     </td>

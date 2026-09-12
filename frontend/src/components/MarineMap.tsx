@@ -246,7 +246,7 @@ export default function MarineMap({
         className: `zone-hatch-${severity}`,
       })
         .bindPopup(
-          `<b>${z.properties.name}</b><br/><span style="opacity:.75">${z.properties.zone_type.replace(/_/g, " ")}</span><br/><span style="font-size:10px;opacity:.6">${z.properties.note}</span>`,
+          `<b>${z.properties.name}</b><br/><span style="opacity:.75">${z.properties.zone_type?.replace(/_/g, " ")}</span><br/><span style="font-size:10px;opacity:.6">${z.properties.note}</span>`,
         )
         .addTo(group);
     });

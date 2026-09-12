@@ -8,6 +8,10 @@ const PLACEHOLDER: Record<Language, string> = {
   en: "Ask ORCA — can I go fishing tomorrow at 6 AM?",
   hi: "ORCA se puchhen — kya main kal subah 6 baje ja sakta hun?",
   mr: "ORCA la vichara — mi udya sakali 6 vajata jau shakto ka?",
+  ta: "ORCA விடம் கேளுங்கள் — நாளை காலை 6 மணிக்கு மீன்பிடிக்க செல்லலாமா?",
+  te: "ORCA ని అడగండి — నేను రేపు ఉదయం 6 గంటలకు చేపలు పట్టడానికి వెళ్ళవచ్చా?",
+  bn: "ORCA কে জিজ্ঞেস করুন — আমি কি কাল সকাল ৬টায় মাছ ধরতে যেতে পারি?",
+  ml: "ORCA യോട് ചോദിക്കുക — എനിക്ക് നാളെ രാവിലെ 6 മണിക്ക് മീൻ പിടിക്കാൻ പോകാമോ?",
 };
 
 const T: Record<Language, Record<string, string>> = {

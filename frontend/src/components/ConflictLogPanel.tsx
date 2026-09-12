@@ -74,7 +74,7 @@ export default function ConflictLogPanel({ conflicts, language = "en" }: Props) 
                     Conflict #{idx + 1}
                   </span>
                   <span className="font-serif font-bold text-sm text-[#12212d] capitalize">
-                    {item.metric.replace(/_/g, " ")} Disagreement
+                    {item.metric?.replace(/_/g, " ")} Disagreement
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-[#556975]">
