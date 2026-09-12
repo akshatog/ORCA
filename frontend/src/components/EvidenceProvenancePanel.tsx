@@ -33,13 +33,14 @@ export default function EvidenceProvenancePanel({
   const [filterMode, setFilterMode] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const filtered = evidence.filter((item) => {
+  const filtered = (evidence ?? []).filter((item) => {
+    if (!item || !item.metric) return false; // guard against malformed entries
     if (filterAuthority !== "all" && item.authority_level !== filterAuthority) return false;
     if (filterMode !== "all" && item.mode !== filterMode) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchMetric = item.metric.toLowerCase().includes(q);
-      const matchSource = item.source.toLowerCase().includes(q);
+      const matchMetric = (item.metric ?? "").toLowerCase().includes(q);
+      const matchSource = (item.source ?? "").toLowerCase().includes(q);
       return matchMetric || matchSource;
     }
     return true;

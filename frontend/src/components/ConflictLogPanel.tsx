@@ -21,6 +21,10 @@ interface Props {
 }
 
 export default function ConflictLogPanel({ conflicts, language = "en" }: Props) {
+  // Filter to only valid conflict records (backend may emit internal __reconciled__ entries)
+  const validConflicts = (conflicts ?? []).filter(
+    (item) => item && typeof item.metric === "string" && item.metric.length > 0
+  );
   return (
     <div className="bg-[#fcfaf4] border border-[#d6cfbe] rounded-lg p-4 shadow-sm text-[#1b2b34] font-sans">
       <div className="border-b border-[#e5dfd0] pb-3 mb-4">
@@ -53,7 +57,7 @@ export default function ConflictLogPanel({ conflicts, language = "en" }: Props) 
         </div>
       </div>
 
-      {conflicts.length === 0 ? (
+      {validConflicts.length === 0 ? (
         <div className="text-center py-8 text-xs text-[#2e7d32] bg-[#f4faf4] border border-dashed border-[#c8e6c9] rounded flex flex-col items-center gap-1.5">
           <svg className="w-5 h-5 text-[#2e7d32]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -63,7 +67,7 @@ export default function ConflictLogPanel({ conflicts, language = "en" }: Props) 
         </div>
       ) : (
         <div className="space-y-3">
-          {conflicts.map((item, idx) => (
+          {validConflicts.map((item, idx) => (
             <div
               key={idx}
               className="bg-white border border-[#e2dacb] rounded-md p-3.5 shadow-sm space-y-2.5"
