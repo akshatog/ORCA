@@ -39,3 +39,6 @@ postman/
 
 # External audit artefacts — findings captured in docs/AUDIT_AND_STATUS.md
 ORCA_AUDIT/
+
+# Cache directories
+data/
