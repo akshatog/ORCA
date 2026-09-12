@@ -36,6 +36,7 @@ import ConflictLogPanel from "./components/ConflictLogPanel";
 import DecisionPipelineVisualizer from "./components/DecisionPipelineVisualizer";
 import VoyageTracker from "./components/VoyageTracker";
 import AlertBanner from "./components/AlertBanner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import type {
   AlertEvent,
   ChatMessage,
@@ -291,7 +292,14 @@ export default function App() {
     api.liveScenarios()
       .then((res) => {
         if (res.scenarios && res.scenarios.length > 0) {
-          setScenarios(res.scenarios);
+          const mapped = res.scenarios.map((s: any, i) => ({
+            id: s.id || `s${i}`,
+            n: `${i + 1}`,
+            label: s.label || { en: s.title || "Scenario", hi: s.title || "Scenario", mr: s.title || "Scenario" },
+            ask: s.ask,
+            hint: s.location || "",
+          }));
+          setScenarios(mapped);
         }
       })
       .catch(() => { /* keep hardcoded fallback */ });
@@ -855,6 +863,13 @@ export default function App() {
 
       {/* ================= ASK : the conversational view ================= */}
       {tab === "ask" && (
+        <ErrorBoundary
+          onReset={() => {
+            setLatest(null);
+            setMessages([]);
+            setAgentEvents([]);
+          }}
+        >
         <>
           <div className="flex flex-wrap items-center gap-2">
             <span className="label mr-1">{ui.scenarios}</span>
@@ -869,7 +884,7 @@ export default function App() {
                 <span className="grid w-[18px] shrink-0 place-items-center rounded-full bg-ink-900 font-display text-[10px] font-bold leading-none text-paper-50" style={{ height: 18 }}>
                   {s.n}
                 </span>
-                <span className="font-semibold">{s.label[uiLang] ?? s.label.en}</span>
+                <span className="font-semibold">{s.label?.[uiLang] ?? s.label?.en ?? s.id}</span>
                 <span className="font-mono text-[10px] uppercase tracking-wide opacity-60">{s.hint}</span>
               </button>
             ))}
@@ -1013,6 +1028,7 @@ export default function App() {
             </div>
           </div>
         </>
+        </ErrorBoundary>
       )}
 
       {tab === "authority" && <AuthorityPanel language={uiLang} />}

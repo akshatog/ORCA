@@ -8,6 +8,7 @@ import "@fontsource-variable/noto-serif-devanagari";
 import "@fontsource-variable/spline-sans-mono";
 import App from "./App";
 import MobileApp from "./components/MobileApp";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 
 // Phone-sized screens get the fisher's own app — voice-first, symbol-first,
@@ -18,7 +19,11 @@ const isPhone =
   mParam === "1" || (mParam !== "0" && window.matchMedia("(max-width: 640px)").matches);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>{isPhone ? <MobileApp /> : <App />}</React.StrictMode>,
+  <React.StrictMode>
+    <ErrorBoundary>
+      {isPhone ? <MobileApp /> : <App />}
+    </ErrorBoundary>
+  </React.StrictMode>,
 );
 
 // Register PWA service worker for offline maritime support
