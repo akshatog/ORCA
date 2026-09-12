@@ -293,7 +293,7 @@ export default function SystemPanel({
   const providers = [
     { name: "Open-Meteo Marine", status: "LIVE", color: "#1D7A50", live: true, ...pText[0] },
     { name: "Open-Meteo Forecast", status: "LIVE", color: "#1D7A50", live: true, ...pText[1] },
-    { name: "INCOIS · IMD · MOSDAC", status: "INTERFACE READY", color: "#A17000", live: false, ...pText[2] },
+    { name: "INCOIS · IMD · MOSDAC", status: "LIVE", color: "#1D7A50", live: true, ...pText[2] },
     { name: "OBIS · Map of Life", status: "BUNDLED SNAPSHOT", color: "#1E5F7A", live: false, ...pText[3] },
     { name: "Demo store", status: "ALWAYS ON", color: "#42596D", live: false, ...pText[4] },
   ];

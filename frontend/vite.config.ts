@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
+    allowedHosts: true,
     port: 5173,
     // Dev server talks to the FastAPI backend without CORS friction.
     // `/api` is the canonical prefix. The bare ORCA 2.0 root paths are also

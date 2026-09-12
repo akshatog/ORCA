@@ -4,6 +4,11 @@
 """
 from __future__ import annotations
 
+import contextlib
+import logging
+
+log = logging.getLogger(__name__)
+
 import os
 from pathlib import Path
 
@@ -15,8 +20,21 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .api import alerts, chat, chat_stream, field, fishing, forecast, map as map_api, plan, routes, voyages, voice
 from .config import get_data_mode
+from .data.scheduler import start_scheduler, stop_scheduler
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app_: FastAPI):  # noqa: ARG001
+    """Start background jobs on app startup; shut them down cleanly on exit."""
+    log.info("ORCA startup — launching background data scheduler...")
+    start_scheduler(run_warmup=True)
+    yield
+    log.info("ORCA shutdown — stopping background data scheduler...")
+    stop_scheduler()
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="ORCA — Marine EcOsystem Reasoning with Collaborative Agents",
     description=(
         "SIH26176 · A crew of cooperating AI agents that turns Indian marine data "
