@@ -1106,7 +1106,7 @@ export default function MobileApp() {
       {tab === "map" && (
         <main className="animate-rise flex-1 px-2 pb-20 pt-2">
           {/* location + radius + legend, and live conditions — one card, not two stacked */}
-          <div className="panel mb-2 overflow-hidden">
+          <div className="panel mb-2">
             <div className="flex items-center justify-between gap-2 px-3 py-2">
               <div ref={portMenuRef} className="relative min-w-0">
                 <button
@@ -1126,7 +1126,7 @@ export default function MobileApp() {
                 </button>
                 {portMenuOpen && (
                   <div
-                    className="panel animate-rise absolute left-0 top-[calc(100%+6px)] z-[650] max-h-56 w-48 overflow-y-auto !p-1"
+                    className="panel animate-rise absolute left-0 top-[calc(100%+6px)] z-[650] max-h-64 w-56 overflow-y-auto !p-1 shadow-2xl"
                     style={{ transformOrigin: "top left" }}
                   >
                     {PORTS.map((p) => (
