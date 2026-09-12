@@ -13,21 +13,18 @@ const PLACEHOLDER: Record<Language, string> = {
 const T: Record<Language, Record<string, string>> = {
   en: {
     title: "Ask ORCA",
-    sub: "Type or speak — English · Hindi · Marathi",
     you: "You",
     emptyMain: "Ask about safety, fishing zones, routes or warnings.",
     emptySub: "ORCA keeps context — follow-ups like what about 12 PM? work.",
   },
   hi: {
     title: "ORCA se puchhen",
-    sub: "Likhen ya bolen — English · Hindi · Marathi",
     you: "Aap",
     emptyMain: "Suraksha, matsya kshetra, marg ya chetavaniyon ke bare mein puchiye.",
     emptySub: "ORCA sandarbh yaad rakhta hai.",
   },
   mr: {
     title: "ORCA la vichara",
-    sub: "Liha kiva bola — English · Hindi · Marathi",
     you: "Tumhi",
     emptyMain: "Suraksha, maseemari kshetra, marg kiva isharyanbadd vichara.",
     emptySub: "ORCA sandarbh lakshat thevate.",
@@ -135,6 +132,10 @@ export default function ChatPanel({
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, busy]);
+
   const fallbackRecognition = useCallback(() => {
     const rec = getRecognition();
     if (!rec) {
@@ -155,8 +156,14 @@ export default function ChatPanel({
   const submit = (value: string) => {
     const v = value.trim();
     if (!v || busy) return;
+    window.speechSynthesis.cancel();
     onSend(v);
     setText("");
+  };
+
+  const handleReset = () => {
+    window.speechSynthesis.cancel();
+    if (onReset) onReset();
   };
 
   const { state: voiceState, toggleRecording } = useVoiceRecorder({
@@ -175,26 +182,11 @@ export default function ChatPanel({
           <div className="font-display text-[16px] font-bold text-ink-900">
             {(T[language] ?? T.en).title}
           </div>
-          <div className="mt-0.5 text-[11px] text-ink-400">{(T[language] ?? T.en).sub}</div>
         </div>
         <div className="flex items-center gap-1">
-          {(["en", "hi", "mr"] as Language[]).map((l) => (
-            <button
-              key={l}
-              onClick={() => onLanguage(l)}
-              className={`rounded-[2px] border px-2.5 py-1 font-mono text-[11px] font-bold transition ${
-                language === l
-                  ? "border-ink-900 bg-ink-900 text-paper-50"
-                  : "text-ink-400 hover:text-ink-800"
-              }`}
-              style={language === l ? undefined : { borderColor: "var(--rule)" }}
-            >
-              {l === "en" ? "EN" : l === "hi" ? "HI" : "MR"}
-            </button>
-          ))}
           {onReset && messages.length > 0 && (
             <button
-              onClick={onReset}
+              onClick={handleReset}
               disabled={busy}
               title="Start a new conversation"
               className="ml-1 rounded-[2px] border px-2.5 py-1 font-mono text-[11px] text-ink-400 transition hover:border-ink-700 hover:text-ink-800 disabled:opacity-40"
