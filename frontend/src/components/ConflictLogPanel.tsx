@@ -78,7 +78,7 @@ export default function ConflictLogPanel({ conflicts, language = "en" }: Props) 
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-[#556975]">
-                  Contenders: {item.contending_sources.join(" vs ")}
+                  Contenders: {(item.contending_sources ?? []).join(" vs ")}
                 </span>
               </div>
 

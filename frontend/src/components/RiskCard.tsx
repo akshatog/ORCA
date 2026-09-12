@@ -82,7 +82,7 @@ export default function RiskCard({
   const [colValue, colReading, colSource, colUpdated] = ui.cols.split("|");
   const [showEvidence, setShowEvidence] = useState(false);
   const color = RISK_COLOR[risk.category];
-  const top = risk.factors.filter((f) => f.contribution > 0).slice(0, 5);
+  const top = (risk.factors ?? []).filter((f) => f.contribution > 0).slice(0, 5);
   const max = Math.max(...top.map((f) => f.contribution), 1);
 
   return (
@@ -148,7 +148,7 @@ export default function RiskCard({
       </div>
 
       {/* deterministic overrides — the trust moment */}
-      {risk.overrides.length > 0 && (
+      {(risk.overrides ?? []).length > 0 && (
         <div className="hatch-danger border-t border-risk-extreme/40 px-5 py-3.5">
           <div className="label mb-2 !text-risk-extreme">{ui.overrides}</div>
           <ul className="space-y-1.5">

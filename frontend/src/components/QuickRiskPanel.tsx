@@ -227,7 +227,7 @@ export default function QuickRiskPanel({ lat, lon, full = false }: QuickRiskPane
         className="flex items-center justify-between border-t bg-paper-150/50 px-5 py-2 font-mono text-[9.5px] uppercase tracking-wide text-ink-400"
         style={{ borderColor: "var(--rule-faint)" }}
       >
-        <span>{risk.sources.join(" · ")}</span>
+        <span>{(risk.sources ?? []).join(" · ")}</span>
         <span className="font-bold" style={{ color }}>{risk.mode}</span>
       </div>
     </div>
